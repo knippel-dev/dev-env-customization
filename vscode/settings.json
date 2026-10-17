@@ -1,0 +1,13 @@
+{
+    "workbench.colorTheme": "Dualline Dark",
+    "editor.fontFamily": "'IosevkaTerm Nerd Font'",
+    "editor.fontWeight": "normal",
+    "editor.fontLigatures": false,
+    "window.zoomLevel": 1,
+    "terminal.integrated.fontFamily": "IosevkaTerm Nerd Font",
+    "terminal.integrated.fontSize": 16,
+    "terminal.integrated.fontWeight": "bold",
+    "terminal.integrated.fontWeightBold": "bold",
+    "terminal.integrated.minimumContrastRatio": 1,
+    "terminal.integrated.drawBoldTextInBrightColors": false
+}

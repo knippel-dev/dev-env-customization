@@ -4,6 +4,7 @@ This repo contains files for customizing the Windows Terminal (PowerShell, WSL) 
 - `powershell/dualline-prompt.ps1` - prompt for PowerShell (Windows Terminal and VS Code)
 - `bash/dualline-prompt.sh` - the same prompt for bash (WSL Ubuntu)
 - `terminal/custom-color-scheme.json` - Windows Terminal color scheme
+- `vscode/` - VS Code appearance settings, the Dualline Dark color theme and extensions, with an install script
 
 # Setup
 This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubuntu Bash.
@@ -39,8 +40,38 @@ This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubu
     - Just focus on the Nerd Font section as the rest of the guide goes into using Oh My Posh prompt engine.
     - Windows Terminal > Settings > {defaults | specific profile} > Appearance > Font Face > {Nerd Font you installed}
 
-6. Configure [VS Code Integrated Terminal](https://code.visualstudio.com/docs/terminal/appearance#_text-style) to use Nerd Font
-    - File > Preferences > Settings > Search Settings 'terminal integrated font family' > Add name of installed Nerd Font
+6. Configure VS Code
+    - Run the install script to install the Dualline Dark theme, apply the appearance settings (color theme, Nerd Font for the editor and [Integrated Terminal](https://code.visualstudio.com/docs/terminal/appearance#_text-style), font sizes and weights, zoom level, terminal color handling) and install the extensions.
+    ```powershell
+    & "C:\code\dev-env-customization\vscode\install.ps1"
+    ```
+    - Settings are merged into your existing `settings.json`, so other settings are left alone. If anything changes, the original is backed up to `settings.json.bak`.
+    - Extensions are installed with the `code` command, which needs VS Code on your PATH (the default for the VS Code installer). Extensions already installed are skipped.
+    - `minimumContrastRatio` and `drawBoldTextInBrightColors` keep VS Code from adjusting the prompt colors, so they match Windows Terminal.
+
+# VS Code Files
+- `vscode/settings.json` - only the appearance settings. Add a setting here if you want it applied by the install script.
+- `vscode/extensions.txt` - one extension ID per line. Get your current list with `code --list-extensions`.
+- `vscode/theme/` - the Dualline Dark color theme, packaged and installed as a local extension by the install script (no Node or `vsce` needed).
+
+# Dualline Dark Theme
+VS Code's Default Dark Modern with the syntax colors swapped for the prompt palette. The window, sidebar and tab colors are unchanged.
+
+| Syntax | Color | Palette |
+|---|---|---|
+| Plain text, punctuation, operators | `#9CCFE8` | Pale blue |
+| Variables, parameters, properties | `#7CB5DC` | Mid blue |
+| Keywords and storage (`if`, `public`, `return`) | `#38A3A5` | section3 |
+| Functions and methods | `#57CC99` | section4 |
+| Strings | `#80ED99` | section5 |
+| Types, classes, namespaces | `#5B9BD0` | section2, lightened so it is readable |
+| Selection background | `#22577A` | section2 |
+| Numbers, constants, enum members | `#C7F9CC` | Mint, the lightest color of the prompt palette family |
+| Comments (italic) | `#6A8FA6` | Muted blue-gray |
+
+To change a color, edit the hex values in `vscode/theme/themes/dualline-dark-color-theme.json` (search for the old value, since each color is used by several rules) and run the install script again. It reinstalls the theme whenever that file changed. If VS Code doesn't pick up the change, run **Developer: Reload Window** from the command palette.
+
+The theme is derived from VS Code's MIT licensed default themes, see `vscode/theme/NOTICE.txt`.
 
 # Prompt Sections
 - OS icon, plus the username only when running over SSH, or `Administrator` / `root` in red when running elevated

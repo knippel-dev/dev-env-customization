@@ -1,0 +1,23 @@
+{
+    "name": "dualline-theme",
+    "displayName": "Dualline Theme",
+    "description": "Default Dark Modern with syntax colors from the dualline prompt palette",
+    "version": "1.0.0",
+    "publisher": "knippel-dev",
+    "license": "MIT",
+    "engines": {
+        "vscode": "^1.70.0"
+    },
+    "categories": [
+        "Themes"
+    ],
+    "contributes": {
+        "themes": [
+            {
+                "label": "Dualline Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/dualline-dark-color-theme.json"
+            }
+        ]
+    }
+}
