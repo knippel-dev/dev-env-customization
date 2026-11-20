@@ -5,6 +5,30 @@ This repo contains files for customizing the Windows Terminal (PowerShell, WSL) 
 - `bash/dualline-prompt.sh` - the same prompt for bash (WSL Ubuntu)
 - `terminal/custom-color-scheme.json` - Windows Terminal color scheme
 - `vscode/` - VS Code appearance settings, the Dualline Dark color theme and extensions, with an install script
+- `fonts/install.ps1` - installs IosevkaTerm Nerd Font for the current user
+- `install.ps1` - applies everything: Nerd Font, Windows Terminal settings, PowerShell prompt and VS Code
+- `bootstrap.ps1` - sets up a new Windows machine: installs the tools below, clones this repo and runs `install.ps1`
+
+# Quick Start (new Windows machine)
+Open the built-in **Windows PowerShell** (no need to install anything first) and run:
+```powershell
+irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1 | iex
+```
+This uses `winget` to install anything missing out of:
+- [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) (`Microsoft.PowerShell`), which the prompt and the VS Code install script need
+- [Git](https://git-scm.com/) (`Git.Git`)
+- [GitHub CLI](https://cli.github.com/) (`GitHub.cli`)
+- [VS Code](https://code.visualstudio.com/) (`Microsoft.VisualStudioCode`)
+
+It then clones this repo to `$HOME\code\dev-env-customization` and runs `install.ps1`, which does setup steps 1, 3, 5 and 6 below:
+- `fonts/install.ps1` installs IosevkaTerm Nerd Font for the current user (no admin needed)
+- `terminal/install.ps1` adds the Custom color scheme to Windows Terminal and makes it and the Nerd Font the defaults for all profiles (the original settings are backed up to `settings.json.bak`)
+- `powershell/install.ps1` adds the prompt to your PowerShell 7 profile, using `-Variant VSCode` automatically in the VS Code terminal
+- `vscode/install.ps1` applies the VS Code settings, theme and extensions
+
+Running it again skips anything already done. Set `$env:DEVENV_DIR` first to clone somewhere else, or `$env:DEVENV_SKIP_INSTALL = '1'` to only install the tools and clone. If you already have the repo and PowerShell 7, run `install.ps1` directly.
+
+Afterwards, restart Windows Terminal and VS Code, sign in to GitHub with `gh auth login` and, for WSL, follow step 4 below. The manual steps below are for setting things up by hand; their paths use `C:\code\dev-env-customization`, so change them to wherever the repo was cloned.
 
 # Setup
 This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubuntu Bash.
