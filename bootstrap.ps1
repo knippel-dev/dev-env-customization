@@ -1,11 +1,11 @@
 # Sets up a new Windows machine for this repo: installs PowerShell 7, Git, GitHub CLI and VS Code with
-# winget, clones the repo and runs the VS Code install script.
+# winget, clones the repo and runs install.ps1 (Nerd Font, Windows Terminal, PowerShell prompt, VS Code).
 # Runs on the Windows PowerShell 5.1 that ships with Windows, so nothing needs to be installed first:
 #   irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1 | iex
 # Safe to run again; anything already installed or cloned is skipped.
 # Optional environment variables (set before running):
 #   DEVENV_DIR          where to clone the repo (default: $HOME\code\dev-env-customization)
-#   DEVENV_SKIP_VSCODE  set to 1 to skip running vscode\install.ps1
+#   DEVENV_SKIP_INSTALL set to 1 to only install the tools and clone, without running install.ps1
 # Wrapped in a script block so settings like $ErrorActionPreference don't leak into the caller when piped to iex
 & {
     $ErrorActionPreference = 'Stop'
@@ -53,17 +53,15 @@
         if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit code $LASTEXITCODE)" }
     }
 
-    # vscode\install.ps1 needs PowerShell 7, so run it with pwsh rather than in this session
-    if ($env:DEVENV_SKIP_VSCODE -ne '1') {
-        Write-Host 'Applying VS Code settings, theme and extensions'
-        pwsh -NoProfile -File (Join-Path $repoDir 'vscode\install.ps1')
-        if ($LASTEXITCODE -ne 0) { throw "vscode\install.ps1 failed (exit code $LASTEXITCODE)" }
+    # install.ps1 needs PowerShell 7, so run it with pwsh rather than in this session
+    if ($env:DEVENV_SKIP_INSTALL -ne '1') {
+        pwsh -NoProfile -File (Join-Path $repoDir 'install.ps1')
+        if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed (exit code $LASTEXITCODE)" }
     }
 
     Write-Host ''
-    Write-Host 'Done. Remaining steps (see README.md in the repo):'
+    Write-Host 'Done. Remaining steps:'
+    Write-Host '  - Open a new terminal (restart Windows Terminal and VS Code) to pick up the PATH, font and prompt'
     Write-Host '  - Sign in to GitHub:  gh auth login'
-    Write-Host '  - Install a Nerd Font and set it as the Windows Terminal font'
-    Write-Host '  - Dot source the prompt from your PowerShell profile'
-    Write-Host '  - Open a new terminal so the updated PATH is picked up'
+    Write-Host '  - For WSL, source bash/dualline-prompt.sh from ~/.bashrc (see README.md)'
 }
