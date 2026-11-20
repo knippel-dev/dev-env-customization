@@ -5,6 +5,22 @@ This repo contains files for customizing the Windows Terminal (PowerShell, WSL) 
 - `bash/dualline-prompt.sh` - the same prompt for bash (WSL Ubuntu)
 - `terminal/custom-color-scheme.json` - Windows Terminal color scheme
 - `vscode/` - VS Code appearance settings, the Dualline Dark color theme and extensions, with an install script
+- `bootstrap.ps1` - sets up a new Windows machine: installs the tools below, clones this repo and runs the VS Code install script
+
+# Quick Start (new Windows machine)
+Open the built-in **Windows PowerShell** (no need to install anything first) and run:
+```powershell
+irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1 | iex
+```
+This uses `winget` to install anything missing out of:
+- [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) (`Microsoft.PowerShell`), which the prompt and the VS Code install script need
+- [Git](https://git-scm.com/) (`Git.Git`)
+- [GitHub CLI](https://cli.github.com/) (`GitHub.cli`)
+- [VS Code](https://code.visualstudio.com/) (`Microsoft.VisualStudioCode`)
+
+It then clones this repo to `$HOME\code\dev-env-customization` and runs `vscode\install.ps1` (step 6 below). Running it again skips anything already done. Set `$env:DEVENV_DIR` first to clone somewhere else, or `$env:DEVENV_SKIP_VSCODE = '1'` to skip the VS Code step.
+
+Afterwards, open a new terminal, sign in to GitHub with `gh auth login` and follow steps 1, 3, 4 and 5 below. The paths below use `C:\code\dev-env-customization`; change them to wherever the repo was cloned.
 
 # Setup
 This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubuntu Bash.
