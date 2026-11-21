@@ -10,6 +10,7 @@
 #   Skipped      deliberately left alone
 #   Failed       something went wrong; Detail says what
 function New-DevEnvResult {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Only creates an object')]
     param(
         [Parameter(Mandatory)]
         [string]$Component,

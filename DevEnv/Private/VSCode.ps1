@@ -6,7 +6,7 @@ $script:VSCodeSettingsPath = "$env:APPDATA\Code\User\settings.json"
 
 # The manifest's settings plus the font settings from Font.Face, sorted so new settings are added in the
 # same order every time
-function Get-VSCodeWantedSettings([Collections.IDictionary]$Config) {
+function Get-VSCodeWantedSetting([Collections.IDictionary]$Config) {
     # The editor font is a CSS font list, so the name is quoted; the terminal font is a plain name
     $fontSettings = @{
         'editor.fontFamily'              = "'$($Config.Font.Face)'"
@@ -50,7 +50,7 @@ function Test-ThemeCurrent($Theme, [string[]]$InstalledExtensions) {
 }
 
 # Packages vscode/theme as a .vsix (a zip with a manifest) so it can be installed without Node or vsce
-function New-ThemeVsix($Theme, [string]$VsixPath) {
+function Build-ThemeVsix($Theme, [string]$VsixPath) {
     $pkg = $Theme.Package
     $manifest = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -110,7 +110,7 @@ function Sync-DevEnvVSCode {
         # Only apply settings, without the theme and extensions
         [switch]$SkipExtensions
     )
-    $wanted = Get-VSCodeWantedSettings $Config
+    $wanted = Get-VSCodeWantedSetting $Config
     $changedKeys = [Collections.Generic.List[string]]::new()
     $status = Update-JsonSettingsFile -Path $SettingsPath -Check:$Check -Update {
         param($settings)
@@ -143,7 +143,7 @@ function Sync-DevEnvVSCode {
     else {
         Write-Information "    Installing theme $($theme.Id)@$($theme.Version)"
         $vsix = Join-Path ([IO.Path]::GetTempPath()) 'dualline-theme.vsix'
-        New-ThemeVsix $theme $vsix
+        Build-ThemeVsix $theme $vsix
         try {
             code --install-extension $vsix --force | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "Installing the theme failed (code exit code $LASTEXITCODE)" }
@@ -182,7 +182,7 @@ function Remove-DevEnvVSCode {
         [string]$SettingsPath = $script:VSCodeSettingsPath,
         [switch]$SkipExtensions
     )
-    $wanted = Get-VSCodeWantedSettings $Config
+    $wanted = Get-VSCodeWantedSetting $Config
     $removedKeys = [Collections.Generic.List[string]]::new()
     $status = Update-JsonSettingsFile -Path $SettingsPath -Update {
         param($settings)

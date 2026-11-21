@@ -3,6 +3,7 @@
 # Rewriting the file drops comments and trailing commas, so the original is kept as <file>.bak.
 function Update-JsonSettingsFile {
     [CmdletBinding(SupportsShouldProcess)]
+    [OutputType([string])]
     param(
         [Parameter(Mandatory)]
         [string]$Path,

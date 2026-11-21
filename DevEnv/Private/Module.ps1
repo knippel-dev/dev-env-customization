@@ -16,7 +16,10 @@ function Get-UserModulePath([string]$KeyPath) {
 
 # Writes the value (deleting it when empty) and tells running apps the environment changed, so terminals
 # opened from now on see it
-function Set-UserModulePath([string]$KeyPath, [string]$Value) {
+# Callers call ShouldProcess before this
+function Set-UserModulePath {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Callers call ShouldProcess')]
+    param([string]$KeyPath, [string]$Value)
     $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($KeyPath)
     try {
         if ($Value) {

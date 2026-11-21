@@ -49,7 +49,7 @@ function ConvertTo-StrftimeFormat([string]$Format) {
 }
 
 # The generated config files: path -> content
-function Get-PromptConfigFiles([Collections.IDictionary]$Config) {
+function Get-PromptConfigFile([Collections.IDictionary]$Config) {
     $prompt = $Config.Prompt
     Test-PromptConfig $prompt
     $segments = @($prompt.Segments)
@@ -92,7 +92,7 @@ function Sync-PromptConfig {
         [Collections.IDictionary]$Config,
         [switch]$Check
     )
-    $files = Get-PromptConfigFiles $Config
+    $files = Get-PromptConfigFile $Config
     $stale = @($files.Keys | Where-Object { -not (Test-Path -LiteralPath $_) -or [IO.File]::ReadAllText($_) -cne $files[$_] })
     if (-not $stale) { return New-DevEnvResult 'Prompt config' UpToDate 'Palette and segments for PowerShell and bash' }
     $names = ($stale | ForEach-Object { Split-Path -Leaf $_ }) -join ', '
@@ -195,6 +195,8 @@ function Sync-DevEnvPrompt {
 }
 
 function Remove-DevEnvPrompt {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Delegated to Remove-PromptProfile and Remove-PromptConfig, which call ShouldProcess')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Every component function takes -Config')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
