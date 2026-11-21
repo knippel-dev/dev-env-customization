@@ -1,57 +1,46 @@
-# Applies the appearance settings in vscode/settings.json to VS Code, installs the Dualline Dark theme
-# from vscode/theme and installs the extensions in vscode/extensions.txt.
-# Settings are merged, so any other settings you have are left alone.
-# Run with:  & "C:\code\dev-env-customization\vscode\install.ps1"
+# Applies the manifest's VS Code settings, installs the Dualline Dark theme from vscode/theme and
+# installs the manifest's extensions. Settings are merged, so any other settings you have are left alone.
+# Run with:  & "$HOME\code\dev-env-customization\vscode\install.ps1"
 param(
     # VS Code's user settings file to merge into
     [string]$SettingsPath = "$env:APPDATA\Code\User\settings.json",
     # Skips installing the theme and extensions, so only settings are applied
-    [switch]$SkipExtensions
+    [switch]$SkipExtensions,
+    # Personal manifest to merge over manifests/default.psd1
+    [string]$Manifest
 )
 $ErrorActionPreference = 'Stop'
+foreach ($helper in Get-ChildItem "$PSScriptRoot\..\DevEnv\Private\*.ps1") { . $helper.FullName }
 
-$repoSettings = Get-Content -LiteralPath "$PSScriptRoot\settings.json" -Raw | ConvertFrom-Json -AsHashtable
+$config = Get-DevEnvManifest $Manifest
 
-$settings = if (Test-Path -LiteralPath $SettingsPath) {
-    Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json -AsHashtable
+# The editor font is a CSS font list, so the name is quoted; the terminal font is a plain name
+$fontSettings = @{
+    'editor.fontFamily'              = "'$($config.Font.Face)'"
+    'terminal.integrated.fontFamily' = $config.Font.Face
 }
-if (-not $settings) { $settings = [ordered]@{} }
+$manifestSettings = Merge-Hashtable $fontSettings $config.VSCode.Settings
+# Sorted so new settings are added in the same order every time
+$wantedSettings = [ordered]@{}
+foreach ($key in $manifestSettings.Keys | Sort-Object) { $wantedSettings[$key] = $manifestSettings[$key] }
 
-$changed = @()
-foreach ($key in $repoSettings.Keys) {
-    $new = $repoSettings[$key]
-    # Compare as JSON so nested settings (like color customizations) are compared by content
-    $same = $settings.Contains($key) -and
-        ($settings[$key] | ConvertTo-Json -Depth 20 -Compress) -eq ($new | ConvertTo-Json -Depth 20 -Compress)
-    if (-not $same) {
-        $settings[$key] = $new
-        $changed += $key
-    }
-}
-
-if ($changed) {
-    # Rewriting the file drops comments and trailing commas, so keep a backup of the original
-    if (Test-Path -LiteralPath $SettingsPath) {
-        Copy-Item -LiteralPath $SettingsPath -Destination "$SettingsPath.bak" -Force
-        Write-Host "Backed up settings to $SettingsPath.bak"
-    }
-    else {
-        New-Item -ItemType Directory -Force (Split-Path -Parent $SettingsPath) | Out-Null
-    }
-    # VS Code can hold the file briefly while it reloads it, so retry a few times before giving up
-    $json = $settings | ConvertTo-Json -Depth 20
-    for ($attempt = 1; ; $attempt++) {
-        try { Set-Content -LiteralPath $SettingsPath -Value $json -Encoding utf8NoBOM -ErrorAction Stop; break }
-        catch [IO.IOException] {
-            if ($attempt -ge 5) { throw }
-            Start-Sleep -Milliseconds 500
+$changedKeys = [Collections.Generic.List[string]]::new()
+$changed = Update-JsonSettingsFile -Path $SettingsPath -Update {
+    param($settings)
+    foreach ($key in $wantedSettings.Keys) {
+        $new = $wantedSettings[$key]
+        # Compare as JSON so nested settings (like color customizations) are compared by content
+        $same = $settings.Contains($key) -and
+            ($settings[$key] | ConvertTo-Json -Depth 20 -Compress) -eq ($new | ConvertTo-Json -Depth 20 -Compress)
+        if (-not $same) {
+            $settings[$key] = $new
+            $changedKeys.Add($key)
         }
     }
-    Write-Host "Updated settings: $($changed -join ', ')"
 }
-else {
-    Write-Host 'Settings already up to date'
-}
+
+if ($changed) { Write-Host "Updated settings: $($changedKeys -join ', ')" }
+else { Write-Host 'Settings already up to date' }
 
 if ($SkipExtensions) { return }
 
@@ -128,8 +117,7 @@ else {
 Remove-Item -LiteralPath $vsix
 
 $installed = $installed | ForEach-Object { ($_ -split '@')[0] }
-$wanted = Get-Content -LiteralPath "$PSScriptRoot\extensions.txt" | Where-Object { $_.Trim() }
-$missing = $wanted | Where-Object { $_ -notin $installed }
+$missing = $config.VSCode.Extensions | Where-Object { $_ -notin $installed }
 
 foreach ($ext in $missing) {
     Write-Host "Installing $ext"

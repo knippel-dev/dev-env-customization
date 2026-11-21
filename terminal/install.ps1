@@ -1,12 +1,20 @@
-# Adds the color scheme in terminal/custom-color-scheme.json to Windows Terminal and makes it and the
-# Nerd Font the defaults for all profiles. Settings are merged, so anything else is left alone.
+# Adds the manifest's color scheme to Windows Terminal and makes it and the manifest's Nerd Font the
+# defaults for all profiles. Settings are merged, so anything else is left alone.
 # Run with:  & "$HOME\code\dev-env-customization\terminal\install.ps1"
 param(
     # Windows Terminal's settings file; found automatically when not given
     [string]$SettingsPath,
-    [string]$FontFace = 'IosevkaTerm Nerd Font'
+    # Personal manifest to merge over manifests/default.psd1
+    [string]$Manifest
 )
 $ErrorActionPreference = 'Stop'
+foreach ($helper in Get-ChildItem "$PSScriptRoot\..\DevEnv\Private\*.ps1") { . $helper.FullName }
+
+$config = Get-DevEnvManifest $Manifest
+$fontFace = $config.Font.Face
+# Sorted so the scheme is written in the same order every time
+$scheme = [ordered]@{}
+foreach ($key in $config.Terminal.ColorScheme.Keys | Sort-Object) { $scheme[$key] = $config.Terminal.ColorScheme[$key] }
 
 if (-not $SettingsPath) {
     $candidates = @(
@@ -25,47 +33,25 @@ if (-not $SettingsPath) {
     }
 }
 
-$scheme = Get-Content -LiteralPath "$PSScriptRoot\custom-color-scheme.json" -Raw | ConvertFrom-Json -AsHashtable
+$changed = Update-JsonSettingsFile -Path $SettingsPath -Update {
+    param($settings)
+    # Replace any scheme with the same name so changes to the manifest's scheme are picked up
+    $schemes = @($settings['schemes'] | Where-Object { $_ -and $_['name'] -ne $scheme['name'] })
+    $settings['schemes'] = @($schemes) + $scheme
 
-$settings = if (Test-Path -LiteralPath $SettingsPath) {
-    Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json -AsHashtable
-}
-if (-not $settings) { $settings = [ordered]@{} }
-$before = $settings | ConvertTo-Json -Depth 20 -Compress
-
-# Replace any scheme with the same name so changes to the repo's scheme are picked up
-$schemes = @($settings['schemes'] | Where-Object { $_ -and $_['name'] -ne $scheme['name'] })
-$settings['schemes'] = @($schemes) + $scheme
-
-if (-not $settings['profiles']) { $settings['profiles'] = [ordered]@{} }
-# profiles can also be a plain list of profiles (older settings format)
-if ($settings['profiles'] -is [array]) { $settings['profiles'] = [ordered]@{ list = $settings['profiles'] } }
-if (-not $settings['profiles']['defaults']) { $settings['profiles']['defaults'] = [ordered]@{} }
-$defaults = $settings['profiles']['defaults']
-if (-not $defaults['font']) { $defaults['font'] = [ordered]@{} }
-$defaults['font']['face'] = $FontFace
-$defaults['colorScheme'] = $scheme['name']
-
-$json = $settings | ConvertTo-Json -Depth 20
-if (($settings | ConvertTo-Json -Depth 20 -Compress) -eq $before) {
-    Write-Host 'Windows Terminal settings already up to date'
-    return
+    if (-not $settings['profiles']) { $settings['profiles'] = [ordered]@{} }
+    # profiles can also be a plain list of profiles (older settings format)
+    if ($settings['profiles'] -is [array]) { $settings['profiles'] = [ordered]@{ list = $settings['profiles'] } }
+    if (-not $settings['profiles']['defaults']) { $settings['profiles']['defaults'] = [ordered]@{} }
+    $defaults = $settings['profiles']['defaults']
+    if (-not $defaults['font']) { $defaults['font'] = [ordered]@{} }
+    $defaults['font']['face'] = $fontFace
+    $defaults['colorScheme'] = $scheme['name']
 }
 
-# Rewriting the file drops comments, so keep a backup of the original
-if (Test-Path -LiteralPath $SettingsPath) {
-    Copy-Item -LiteralPath $SettingsPath -Destination "$SettingsPath.bak" -Force
-    Write-Host "Backed up Windows Terminal settings to $SettingsPath.bak"
+if ($changed) {
+    Write-Host "Windows Terminal now uses the '$($scheme['name'])' color scheme and '$fontFace' font by default"
 }
 else {
-    New-Item -ItemType Directory -Force (Split-Path -Parent $SettingsPath) | Out-Null
+    Write-Host 'Windows Terminal settings already up to date'
 }
-# Windows Terminal can hold the file briefly while it reloads it, so retry a few times before giving up
-for ($attempt = 1; ; $attempt++) {
-    try { Set-Content -LiteralPath $SettingsPath -Value $json -Encoding utf8NoBOM -ErrorAction Stop; break }
-    catch [IO.IOException] {
-        if ($attempt -ge 5) { throw }
-        Start-Sleep -Milliseconds 500
-    }
-}
-Write-Host "Windows Terminal now uses the '$($scheme['name'])' color scheme and '$FontFace' font by default"

@@ -1,11 +1,15 @@
-# Installs a Nerd Font for the current user (no admin needed) from the Nerd Fonts GitHub releases.
-# Only the regular family is installed (not the Mono or Propo variants, whose icons are smaller).
+# Installs the manifest's Nerd Font for the current user (no admin needed) from the Nerd Fonts GitHub
+# releases. Only the regular family is installed (not the Mono or Propo variants, whose icons are smaller).
 # Run with:  & "$HOME\code\dev-env-customization\fonts\install.ps1"
 param(
-    # Name of the release zip at https://github.com/ryanoasis/nerd-fonts/releases, without .zip
-    [string]$Font = 'IosevkaTerm'
+    # Personal manifest to merge over manifests/default.psd1
+    [string]$Manifest
 )
 $ErrorActionPreference = 'Stop'
+foreach ($helper in Get-ChildItem "$PSScriptRoot\..\DevEnv\Private\*.ps1") { . $helper.FullName }
+
+# Name of the release zip at https://github.com/ryanoasis/nerd-fonts/releases, without .zip
+$Font = (Get-DevEnvManifest $Manifest).Font.Name
 # The progress bar makes Invoke-WebRequest much slower on large downloads
 $ProgressPreference = 'SilentlyContinue'
 
