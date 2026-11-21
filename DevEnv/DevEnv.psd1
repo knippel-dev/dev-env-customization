@@ -1,6 +1,6 @@
 @{
     RootModule           = 'DevEnv.psm1'
-    ModuleVersion        = '0.4.0'
+    ModuleVersion        = '0.5.0'
     GUID                 = '0873aa5c-f43d-4dc0-a9d2-315d29a23dab'
     Author               = 'knippel-dev'
     Copyright            = '(c) knippel-dev. MIT License.'

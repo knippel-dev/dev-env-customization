@@ -28,6 +28,36 @@
         Distro = ''
     }
 
+    # The dual line prompt, for both PowerShell and bash (Sync-DevEnv generates each shell's config from this)
+    Prompt   = @{
+        Palette             = @{
+            # Section backgrounds, left to right
+            section0  = '#061621'
+            section1  = '#0B293D'
+            section2  = '#22577A'
+            section3  = '#38A3A5'
+            section4  = '#57CC99'
+            section5  = '#80ED99'
+            # Text on dark and light sections
+            textlight = '#80ED99'
+            textdark  = '#000000'
+            # The lines joining the two prompt lines, the chevron, and the chevron after a failed command
+            frame     = '#22577A'
+            chevron   = '#80ED99'
+            error     = '#E74856'
+        }
+        # Segments, left to right. Each is drawn on the next section color (the first on section0, and so on),
+        # so the palette needs a section for each. Available: os (plus the user when elevated or over SSH),
+        # path, git, docker, time, and gap (an empty section).
+        Segments            = @('os', 'path', 'git', 'docker', 'gap', 'time')
+        # Segments in the VS Code integrated terminal; leave out to use Segments there too
+        VSCodeSegments      = @('os', 'path', 'git', 'gap', 'docker', 'time')
+        # How many folders of the path to show
+        DirTruncationLength = 3
+        # .NET format, converted for bash. Supports H, HH, h, hh, m, mm, s, ss and tt.
+        TimeFormat          = 'HH:mm'
+    }
+
     Font     = @{
         # Name of the release zip at https://github.com/ryanoasis/nerd-fonts/releases, without .zip
         Name = 'IosevkaTerm'

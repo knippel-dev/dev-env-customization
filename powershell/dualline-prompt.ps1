@@ -2,29 +2,30 @@
 # Load it from your profile with:  . "C:\code\dev-env-customization\powershell\dualline-prompt.ps1"
 # For the VS Code integrated terminal use:  . "...\dualline-prompt.ps1" -Variant VSCode
 # Needs a Nerd Font in the terminal.
+#
+# The palette, segments, path length and time format come from the Prompt section of the manifest:
+# dualline-prompt.config.psd1 next to this script, which Sync-DevEnv generates from your manifest, or
+# manifests/default.psd1 in the repo when that hasn't been generated.
 param(
-    # VSCode moves the docker segment one section to the right
+    # VSCode uses the manifest's VSCodeSegments (by default, the docker segment one section to the right)
     [ValidateSet('Default', 'VSCode')]
     [string]$Variant = 'Default'
 )
-$script:PromptVariant = $Variant
-
-### COLOR SCHEME ###
-$script:PromptPalette = @{
-    section0  = '#061621'
-    section1  = '#0B293D'
-    section2  = '#22577A'
-    section3  = '#38A3A5'
-    section4  = '#57CC99'
-    section5  = '#80ED99'
-    textlight = '#80ED99'
-    textdark  = '#000000'
-}
 
 ### SETTINGS ###
-$script:PromptDirTruncationLength = 3
+$promptConfigFile = Join-Path $PSScriptRoot 'dualline-prompt.config.psd1'
+$promptConfig = if (Test-Path -LiteralPath $promptConfigFile) {
+    Import-PowerShellDataFile -LiteralPath $promptConfigFile
+}
+else {
+    (Import-PowerShellDataFile -LiteralPath (Join-Path $PSScriptRoot '..\manifests\default.psd1')).Prompt
+}
+$script:PromptPalette = $promptConfig.Palette
+$script:PromptSegments = @(if ($Variant -eq 'VSCode' -and $promptConfig.VSCodeSegments) { $promptConfig.VSCodeSegments } else { $promptConfig.Segments })
+$script:PromptDirTruncationLength = [int]$promptConfig.DirTruncationLength
+$script:PromptTimeFormat = $promptConfig.TimeFormat
 $script:PromptDirTruncationSymbol = [char]0x2026 + '\'   # …\
-$script:PromptTimeFormat = 'HH:mm'
+Remove-Variable promptConfigFile, promptConfig
 
 ### GLYPHS ###
 $script:Glyph = @{
@@ -169,56 +170,65 @@ function script:Get-PromptDockerContext([string]$path) {
 }
 
 function global:prompt {
+    # Must come first: whether the command before this prompt succeeded
+    $lastSucceeded = $?
     $lastExit = $global:LASTEXITCODE
     $G = $script:Glyph
 
     $loc = $ExecutionContext.SessionState.Path.CurrentLocation
-    $path = if ($loc.Provider.Name -eq 'FileSystem') { $loc.ProviderPath } else { $loc.Path }
-    $gitRoot = if ($loc.Provider.Name -eq 'FileSystem') { Get-GitRoot $path } else { $null }
-
-    $osSymbol = $script:PromptOsSymbol
-    $isAdmin = $script:PromptIsAdmin
-    $showUser = $script:PromptShowUser
+    $isFileSystem = $loc.Provider.Name -eq 'FileSystem'
+    $path = if ($isFileSystem) { $loc.ProviderPath } else { $loc.Path }
+    $gitRoot = if ($isFileSystem) { Get-GitRoot $path } else { $null }
 
     $sb = [Text.StringBuilder]::new()
 
-    # Line 1
-    [void]$sb.Append($PromptFg.section2 + $G.TopLeft)
-    [void]$sb.Append($PromptFg.section0 + $G.LeftCap)
-    [void]$sb.Append($Bold + $PromptBg.section0 + $White + "$osSymbol  " + $Reset)
-    if ($showUser) {
-        # Elevated shells show "Administrator" rather than the account name
-        $userStyle = if ($isAdmin) { $Bold + $PromptBg.section0 + $Red } else { $PromptFg.textlight + $PromptBg.section0 }
-        $userName = if ($isAdmin) { 'Administrator' } else { [Environment]::UserName }
-        [void]$sb.Append($userStyle + "$userName " + $Reset)
-    }
+    # Line 1: each segment sits on the next section color, joined by arrows
+    [void]$sb.Append($PromptFg.frame + $G.TopLeft)
+    for ($i = 0; $i -lt $PromptSegments.Count; $i++) {
+        $bg = $PromptBg["section$i"]
+        if ($i -eq 0) {
+            [void]$sb.Append($PromptFg.section0 + $G.LeftCap)
+            # The cap only sets the foreground, so start the first section's background (os sets its own)
+            if ($PromptSegments[0] -ne 'os') { [void]$sb.Append($bg) }
+        }
+        else { [void]$sb.Append($bg + $PromptFg["section$($i - 1)"] + $G.Arrow) }
 
-    [void]$sb.Append($PromptBg.section1 + $PromptFg.section0 + $G.Arrow)
-    [void]$sb.Append($Bold + $PromptFg.textlight + " $(Get-PromptDirectory $path $gitRoot) " + $Reset)
-
-    [void]$sb.Append($PromptBg.section2 + $PromptFg.section1 + $G.Arrow)
-    if ($gitRoot) {
-        $git = Get-PromptGit $gitRoot
-        if ($git) {
-            [void]$sb.Append($Bold + $PromptFg.textdark + " $($G.Branch) $($git.Branch) ")
-            [void]$sb.Append($Red + "$($git.Status) " + $Reset)
+        switch ($PromptSegments[$i]) {
+            'os' {
+                [void]$sb.Append($Bold + $bg + $White + "$PromptOsSymbol  " + $Reset)
+                if ($PromptShowUser) {
+                    # Elevated shells show "Administrator" rather than the account name
+                    $userStyle = if ($PromptIsAdmin) { $Bold + $bg + $Red } else { $PromptFg.textlight + $bg }
+                    $userName = if ($PromptIsAdmin) { 'Administrator' } else { [Environment]::UserName }
+                    [void]$sb.Append($userStyle + "$userName " + $Reset)
+                }
+            }
+            'path' {
+                [void]$sb.Append($Bold + $PromptFg.textlight + " $(Get-PromptDirectory $path $gitRoot) " + $Reset)
+            }
+            'git' {
+                $git = if ($gitRoot) { Get-PromptGit $gitRoot }
+                if ($git) {
+                    [void]$sb.Append($Bold + $PromptFg.textdark + " $($G.Branch) $($git.Branch) ")
+                    [void]$sb.Append($Red + "$($git.Status) " + $Reset)
+                }
+            }
+            'docker' {
+                $docker = if ($isFileSystem) { Get-PromptDockerContext $path }
+                if ($docker) { [void]$sb.Append($Bold + $bg + $PromptFg.textdark + " $($G.Docker) $docker " + $Reset) }
+            }
+            'time' {
+                [void]$sb.Append($Bold + $PromptFg.textdark + " $($G.Clock) $(Get-Date -Format $PromptTimeFormat) " + $Reset)
+            }
+            # 'gap' is an empty section
         }
     }
+    [void]$sb.Append($PromptFg["section$($PromptSegments.Count - 1)"] + $G.RightCap + $Reset)
 
-    $docker = if ($loc.Provider.Name -eq 'FileSystem') { Get-PromptDockerContext $path } else { $null }
-    $dockerSegment = if ($docker) { $Bold + $PromptBg.section4 + $PromptFg.textdark + " $($G.Docker) $docker " + $Reset } else { '' }
-
-    [void]$sb.Append($PromptBg.section3 + $PromptFg.section2 + $G.Arrow)
-    if ($PromptVariant -eq 'Default') { [void]$sb.Append($dockerSegment) }
-    [void]$sb.Append($PromptBg.section4 + $PromptFg.section3 + $G.Arrow)
-    if ($PromptVariant -eq 'VSCode') { [void]$sb.Append($dockerSegment) }
-    [void]$sb.Append($PromptBg.section5 + $PromptFg.section4 + $G.Arrow)
-    [void]$sb.Append($Bold + $PromptFg.textdark + " $($G.Clock) $(Get-Date -Format $PromptTimeFormat) " + $Reset)
-    [void]$sb.Append($PromptFg.section5 + $G.RightCap + $Reset)
-
-    # Line 2
-    [void]$sb.Append("`n" + $PromptFg.section2 + $G.BotLeft)
-    [void]$sb.Append($Bold + $PromptFg.section5 + "$($G.Chevron) " + $Reset)
+    # Line 2: the chevron turns to the error color after a failed command
+    $chevron = if ($lastSucceeded) { $PromptFg.chevron } else { $PromptFg.error }
+    [void]$sb.Append("`n" + $PromptFg.frame + $G.BotLeft)
+    [void]$sb.Append($Bold + $chevron + "$($G.Chevron) " + $Reset)
 
     $global:LASTEXITCODE = $lastExit
     $sb.ToString()

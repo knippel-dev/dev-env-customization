@@ -10,7 +10,7 @@ function Uninstall-DevEnv {
       Git       unsets the global git settings that still have the manifest's values
       VSCode    removes the settings that still have the manifest's values and uninstalls the theme.
                 Other extensions are left installed.
-      Prompt    removes the block DevEnv added to your PowerShell profile
+      Prompt    removes the block DevEnv added to your PowerShell profile, and the generated prompt config
       Terminal  removes the color scheme, and the default color scheme and font if they're still the manifest's
       Font      uninstalls the Nerd Font. Close Windows Terminal and VS Code first, since they keep it in use.
       Packages  nothing: apps are left installed
