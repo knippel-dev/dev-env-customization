@@ -16,11 +16,14 @@ function Invoke-DevEnvComponent {
     $ErrorActionPreference = 'Stop'
     $config = Get-DevEnvManifest $Manifest
     $manifestPath = Get-DevEnvManifestPath $Manifest
-    if ($manifestPath) { Write-Verbose "Using personal manifest $manifestPath" }
+    $checkOnly = $Parameters['Check']
+    if ($manifestPath -and -not $checkOnly) { Write-Information "Using personal manifest $manifestPath" }
 
     $order = if ($Reverse) { $script:Components[-1..-($script:Components.Count)] } else { $script:Components }
     foreach ($name in $order) {
         if ($name -notin $Component) { continue }
+        # Progress messages; the public commands show them unless called with -InformationAction SilentlyContinue
+        if (-not $checkOnly) { Write-Information "==> $(if ($Verb -eq 'Remove') { 'Removing ' })$name" }
         try {
             & "$Verb-DevEnv$name" -Config $config @Parameters
         }

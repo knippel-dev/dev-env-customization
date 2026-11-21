@@ -53,5 +53,7 @@ function Sync-DevEnv {
         [string[]]$Component = $script:Components,
         [string]$Manifest
     )
+    # Show progress messages, unless the caller chose otherwise (like -InformationAction SilentlyContinue)
+    if (-not $PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference = 'Continue' }
     Invoke-DevEnvComponent -Verb Sync -Component $Component -Manifest $Manifest
 }

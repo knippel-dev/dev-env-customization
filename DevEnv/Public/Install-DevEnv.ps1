@@ -38,7 +38,10 @@ function Install-DevEnv {
         [string[]]$Component = $script:Components,
         [string]$Manifest
     )
+    # Show progress messages, unless the caller chose otherwise (like -InformationAction SilentlyContinue)
+    if (-not $PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference = 'Continue' }
+    Write-Information '==> Module'
     try { Sync-DevEnvModule -ErrorAction Stop }
     catch { New-DevEnvResult Module Failed $_.Exception.Message }
-    Sync-DevEnv -Component $Component -Manifest $Manifest
+    Sync-DevEnv -Component $Component -Manifest $Manifest -InformationAction $InformationPreference
 }
