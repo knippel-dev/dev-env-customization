@@ -18,7 +18,7 @@ This uses `winget` to install [PowerShell 7](https://learn.microsoft.com/en-us/p
 - `Packages` installs the apps in the manifest with winget: PowerShell 7, Git, GitHub CLI, VS Code, PowerToys, Azure CLI, Claude and Claude Code
 - `Font` installs IosevkaTerm Nerd Font for the current user (no admin needed)
 - `Terminal` adds the Custom color scheme to Windows Terminal and makes it and the Nerd Font the defaults for all profiles
-- `Prompt` adds the prompt to your PowerShell 7 profile, using `-Variant VSCode` automatically in the VS Code terminal
+- `Prompt` generates the prompt's config from the manifest and adds the prompt to your PowerShell 7 profile, using `-Variant VSCode` automatically in the VS Code terminal
 - `VSCode` applies the VS Code settings, theme and extensions
 - `Git` applies global git config, like `init.defaultBranch`
 - `Wsl` adds the bash prompt to `~/.bashrc` in WSL, if WSL is installed
@@ -76,7 +76,7 @@ This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubu
     ```powershell
     . "C:\code\dev-env-customization\powershell\dualline-prompt.ps1"
     ```
-    - For the VS Code Integrated Terminal, add `-Variant VSCode`, which moves the docker section one place to the right.
+    - For the VS Code Integrated Terminal, add `-Variant VSCode`, which uses the manifest's `VSCodeSegments` (by default, the docker section one place to the right).
     ```powershell
     . "C:\code\dev-env-customization\powershell\dualline-prompt.ps1" -Variant VSCode
     ```
@@ -126,12 +126,16 @@ To change a color, edit the hex values in `vscode/theme/themes/dualline-dark-col
 
 The theme is derived from VS Code's MIT licensed default themes, see `vscode/theme/NOTICE.txt`.
 
-# Prompt Sections
-- OS icon, plus the username only when running over SSH, or `Administrator` / `root` in red when running elevated
-- Directory truncated to the last 3 folders, starting at the repo folder when inside a git repo
-- Git branch and status symbols (`=` conflicted, `$` stashed, `✘` deleted, `»` renamed, `!` modified, `+` staged, `?` untracked, `⇡⇣⇕` ahead/behind)
-- Docker context, only in folders containing a Dockerfile or compose file and when the context is not the default
-- Time (`HH:mm`)
+# Prompt Segments
+Line 1 shows these segments, in the order set by the manifest (see [Customization](#customization)):
+- `os` - OS icon, plus the username only when running over SSH, or `Administrator` / `root` in red when running elevated
+- `path` - directory truncated to the last 3 folders, starting at the repo folder when inside a git repo
+- `git` - branch and status symbols (`=` conflicted, `$` stashed, `✘` deleted, `»` renamed, `!` modified, `+` staged, `?` untracked, `⇡⇣⇕` ahead/behind)
+- `docker` - Docker context, only in folders containing a Dockerfile or compose file and when the context is not the default
+- `time` - the time (`HH:mm`)
+- `gap` - an empty section, for the color gradient
+
+Line 2 is the chevron you type after. It turns red when the last command failed.
 
 # Customization
 `manifests/default.psd1` describes what `Sync-DevEnv` sets up:
@@ -141,6 +145,14 @@ The theme is derived from VS Code's MIT licensed default themes, see `vscode/the
 - `Font` - the Nerd Font to install (`Name`, the release zip) and the font family Windows Terminal and VS Code use (`Face`)
 - `Terminal.ColorScheme` - the Windows Terminal color scheme
 - `VSCode.Settings` and `VSCode.Extensions` - settings merged into VS Code's `settings.json`, and extensions to install
+- `Prompt` - the prompt, for both PowerShell and bash:
+  - `Palette` - `section0`, `section1`, ... are the segment backgrounds from left to right; `textlight` / `textdark` the text on them; `frame` the lines joining the two prompt lines; `chevron` and `error` the chevron normally and after a failed command
+  - `Segments` - the segments from left to right (see [Prompt Segments](#prompt-segments)). Each is drawn on the next section color, so the palette needs a `section` for each one.
+  - `VSCodeSegments` - the segments in the VS Code integrated terminal (by default, docker one section further right)
+  - `DirTruncationLength` - how many folders of the path to show
+  - `TimeFormat` - a .NET time format such as `HH:mm` or `h:mm tt`, converted for bash
+
+  `Sync-DevEnv` generates each shell's config from this (`powershell/dualline-prompt.config.psd1` and `bash/dualline-prompt.config.sh`, not committed), so the two prompts always match. Open a new terminal to see changes.
 
 To change any of it without editing the repo, create a personal manifest with only the values you want to change. It is merged over the default: sections merge key by key, and lists (like `Extensions`) replace the default list.
 ```powershell
@@ -148,10 +160,9 @@ To change any of it without editing the repo, create a personal manifest with on
 @{
     Font     = @{ Name = 'CascadiaCode'; Face = 'CaskaydiaCove Nerd Font' }
     Terminal = @{ ColorScheme = @{ background = '#101010' } }
+    Prompt   = @{ Palette = @{ section0 = '#1A1A2E' }; TimeFormat = 'h:mm tt' }
 }
 ```
 The personal manifest is the first one found of: `-Manifest <path>` (on `install.ps1` or any `DevEnv` command), `$env:DEVENV_MANIFEST`, `~/.config/devenv/manifest.psd1`. Then run `Sync-DevEnv` (or `Get-DevEnv` first, to see what would change).
-
-The prompt's color palette, directory truncation length and time format are still set at the top of each prompt script. Keep the PowerShell and bash scripts in sync if you use both.
 
 The prompt only runs `git` when inside a git repo, and runs it once per prompt, so it stays fast (a few milliseconds outside a repo).

@@ -10,7 +10,7 @@ function Sync-DevEnv {
       Packages  apps, installed with winget
       Font      the Nerd Font, installed for the current user
       Terminal  Windows Terminal's default color scheme and font
-      Prompt    the dual line prompt in your PowerShell 7 profile
+      Prompt    the dual line prompt: its config for PowerShell and bash, and your PowerShell 7 profile
       VSCode    VS Code settings, the Dualline Dark theme and extensions
       Git       global git config
       Wsl       the dual line prompt in ~/.bashrc in WSL

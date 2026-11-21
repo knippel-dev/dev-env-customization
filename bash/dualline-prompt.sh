@@ -1,8 +1,12 @@
 # Dual-line prompt in plain bash, the bash counterpart of powershell/dualline-prompt.ps1.
 # Load it from ~/.bashrc with:  source ~/repos/dev-env-customization/bash/dualline-prompt.sh
 # Needs bash 4.2+ and a Nerd Font in the terminal.
+#
+# The palette, segments, path length and time format come from the Prompt section of the manifest, through
+# dualline-prompt.config.sh next to this script, which Sync-DevEnv generates. The values below are only used
+# when it hasn't been generated, and match manifests/default.psd1.
 
-### COLOR SCHEME ###
+### SETTINGS ###
 declare -A _dl_palette=(
     [section0]='#061621'
     [section1]='#0B293D'
@@ -12,12 +16,23 @@ declare -A _dl_palette=(
     [section5]='#80ED99'
     [textlight]='#80ED99'
     [textdark]='#000000'
+    [frame]='#22577A'
+    [chevron]='#80ED99'
+    [error]='#E74856'
 )
-
-### SETTINGS ###
+_dl_segments=(os path git docker gap time)
+# Used in the VS Code integrated terminal
+_dl_vscode_segments=(os path git gap docker time)
 _dl_dir_truncation_length=3
 _dl_dir_truncation_symbol=$'\u2026/'   # …/
 _dl_time_format='%H:%M'
+
+# Settings from the manifest, when Sync-DevEnv has generated them
+_dl_config=${BASH_SOURCE[0]%/*}/dualline-prompt.config.sh
+# shellcheck source=/dev/null
+[[ -r $_dl_config ]] && source "$_dl_config"
+unset _dl_config
+[[ $TERM_PROGRAM == vscode && ${#_dl_vscode_segments[@]} -gt 0 ]] && _dl_segments=("${_dl_vscode_segments[@]}")
 
 ### GLYPHS ###
 _dl_left_cap=$'\ue0b6'
@@ -172,48 +187,60 @@ _dl_docker_context() {
 
 _dl_prompt() {
     local last_exit=$?
-    local fg_s0=${_dl_fg[section0]} fg_s1=${_dl_fg[section1]} fg_s2=${_dl_fg[section2]}
-    local fg_s3=${_dl_fg[section3]} fg_s4=${_dl_fg[section4]} fg_s5=${_dl_fg[section5]}
-    local bg_s0=${_dl_bg[section0]} bg_s1=${_dl_bg[section1]} bg_s2=${_dl_bg[section2]}
-    local bg_s3=${_dl_bg[section3]} bg_s4=${_dl_bg[section4]} bg_s5=${_dl_bg[section5]}
     local fg_light=${_dl_fg[textlight]} fg_dark=${_dl_fg[textdark]}
-    local ps
-
-    # Line 1
-    ps="$fg_s2$_dl_top_left$fg_s0$_dl_left_cap"
-    ps+="$_dl_bold$bg_s0$_dl_white$_dl_os_symbol  $_dl_reset"
-    if (( EUID == 0 )); then
-        ps+="$_dl_bold$bg_s0$_dl_red\\u $_dl_reset"
-    elif [[ -n $SSH_CONNECTION || -n $SSH_CLIENT || -n $SSH_TTY ]]; then
-        ps+="$fg_light$bg_s0\\u $_dl_reset"
-    fi
+    local ps i bg count=${#_dl_segments[@]}
 
     _dl_git_root
-    _dl_directory
-    local dir=${_dl_dir//\\/\\\\}
-    dir=${dir//\$/\\\$}
-    ps+="$bg_s1$fg_s0$_dl_arrow$_dl_bold$fg_light $dir $_dl_reset"
 
-    ps+="$bg_s2$fg_s1$_dl_arrow"
-    if [[ -n $_dl_root ]] && _dl_git; then
-        ps+="$_dl_bold$fg_dark $_dl_branch $_dl_git_branch "
-        ps+="$_dl_red$_dl_git_status $_dl_reset"
-    fi
+    # Line 1: each segment sits on the next section color, joined by arrows
+    ps="${_dl_fg[frame]}$_dl_top_left"
+    for (( i = 0; i < count; i++ )); do
+        bg=${_dl_bg[section$i]}
+        if (( i == 0 )); then
+            ps+="${_dl_fg[section0]}$_dl_left_cap"
+            # The cap only sets the foreground, so start the first section's background (os sets its own)
+            [[ ${_dl_segments[0]} != os ]] && ps+="$bg"
+        else
+            ps+="$bg${_dl_fg[section$((i - 1))]}$_dl_arrow"
+        fi
 
-    ps+="$bg_s3$fg_s2$_dl_arrow"
-    if _dl_docker_context; then
-        ps+="$_dl_bold$bg_s4$fg_dark $_dl_docker $_dl_docker_ctx $_dl_reset"
-    fi
+        case ${_dl_segments[i]} in
+            os)
+                ps+="$_dl_bold$bg$_dl_white$_dl_os_symbol  $_dl_reset"
+                if (( EUID == 0 )); then
+                    ps+="$_dl_bold$bg$_dl_red\\u $_dl_reset"
+                elif [[ -n $SSH_CONNECTION || -n $SSH_CLIENT || -n $SSH_TTY ]]; then
+                    ps+="$fg_light$bg\\u $_dl_reset"
+                fi ;;
+            path)
+                _dl_directory
+                local dir=${_dl_dir//\\/\\\\}
+                dir=${dir//\$/\\\$}
+                ps+="$_dl_bold$fg_light $dir $_dl_reset" ;;
+            git)
+                if [[ -n $_dl_root ]] && _dl_git; then
+                    ps+="$_dl_bold$fg_dark $_dl_branch $_dl_git_branch "
+                    ps+="$_dl_red$_dl_git_status $_dl_reset"
+                fi ;;
+            docker)
+                if _dl_docker_context; then
+                    ps+="$_dl_bold$bg$fg_dark $_dl_docker $_dl_docker_ctx $_dl_reset"
+                fi ;;
+            time)
+                local now
+                printf -v now "%($_dl_time_format)T" -1
+                # Formats this bash's strftime doesn't support (like %-I outside glibc) come out empty
+                [[ -z $now ]] && printf -v now '%(%H:%M)T' -1
+                ps+="$_dl_bold$fg_dark $_dl_clock $now $_dl_reset" ;;
+            # gap is an empty section
+        esac
+    done
+    ps+="${_dl_fg[section$((count - 1))]}$_dl_right_cap$_dl_reset"
 
-    ps+="$bg_s4$fg_s3$_dl_arrow"
-    ps+="$bg_s5$fg_s4$_dl_arrow"
-    local now
-    printf -v now "%($_dl_time_format)T" -1
-    ps+="$_dl_bold$fg_dark $_dl_clock $now $_dl_reset"
-    ps+="$fg_s5$_dl_right_cap$_dl_reset"
-
-    # Line 2
-    ps+="\n$fg_s2$_dl_bot_left$_dl_bold$fg_s5$_dl_chevron $_dl_reset"
+    # Line 2: the chevron turns to the error color after a failed command
+    local chevron=${_dl_fg[chevron]}
+    (( last_exit != 0 )) && chevron=${_dl_fg[error]}
+    ps+="\n${_dl_fg[frame]}$_dl_bot_left$_dl_bold$chevron$_dl_chevron $_dl_reset"
 
     PS1=$ps
     return $last_exit
