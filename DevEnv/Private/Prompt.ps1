@@ -30,7 +30,7 @@ function Sync-DevEnvPrompt {
 
     $block = @"
 
-$script:PromptBlockHeader (added by Install-DevEnv)
+$script:PromptBlockHeader (added by DevEnv)
 `$devEnvPrompt = "$pathText"
 if (Test-Path -LiteralPath `$devEnvPrompt) {
     . `$devEnvPrompt -Variant `$(if (`$env:TERM_PROGRAM -eq 'vscode') { 'VSCode' } else { 'Default' })
@@ -57,7 +57,7 @@ function Remove-DevEnvPrompt {
     # From the header comment (and the blank line before it) to the closing Remove-Variable line
     $pattern = '(?ms)(\r?\n)?^' + [regex]::Escape($script:PromptBlockHeader) + '.*?^Remove-Variable devEnvPrompt[^\r\n]*(\r?\n)?'
     $newText = [regex]::Replace($text, $pattern, '')
-    $byHand = 'loads the prompt with a line not added by Install-DevEnv; remove it by hand'
+    $byHand = 'loads the prompt with a line not added by DevEnv; remove it by hand'
 
     if ($newText -eq $text) {
         if ($text -match 'dualline-prompt\.ps1') { return New-DevEnvResult Prompt Skipped "$ProfilePath $byHand" }

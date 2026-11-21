@@ -1,22 +1,18 @@
 function Install-DevEnv {
     <#
     .SYNOPSIS
-    Sets up the dev environment described by the manifest.
+    Installs DevEnv: makes its commands available in every PowerShell session and syncs the machine with
+    the manifest.
 
     .DESCRIPTION
-    Installs and configures each component from the manifest (manifests/default.psd1, with your personal
-    manifest merged over it):
+    Adds this repo's folder to your user PSModulePath, so Sync-DevEnv, Get-DevEnv and Uninstall-DevEnv work
+    in any PowerShell session without Import-Module, then runs Sync-DevEnv. This is what install.ps1 and
+    bootstrap.ps1 run. Safe to run again.
 
-      Font      the Nerd Font, installed for the current user
-      Terminal  Windows Terminal's default color scheme and font
-      Prompt    the dual line prompt in your PowerShell 7 profile
-      VSCode    VS Code settings, the Dualline Dark theme and extensions
-
-    Safe to run again: anything already set up is left alone. Settings files are merged, not replaced, and
-    the original is kept as <file>.bak whenever one is changed.
+    Afterwards, use Sync-DevEnv to apply changes to your manifest, and Get-DevEnv to see what's set up.
 
     .PARAMETER Component
-    Which components to set up. Defaults to all of them.
+    Which components to sync. Defaults to all of them. The commands are made available either way.
 
     .PARAMETER Manifest
     A personal manifest to merge over manifests/default.psd1. When not given, $env:DEVENV_MANIFEST or
@@ -25,29 +21,24 @@ function Install-DevEnv {
     .EXAMPLE
     Install-DevEnv
 
-    Sets up everything.
-
     .EXAMPLE
-    Install-DevEnv -Component Terminal, VSCode -WhatIf
+    Install-DevEnv -WhatIf
 
-    Shows what would change in Windows Terminal and VS Code, without changing anything.
-
-    .EXAMPLE
-    Install-DevEnv -Manifest ~/work-manifest.psd1 -Verbose
-
-    Uses a different personal manifest and shows each step.
+    Shows everything that would change, without changing anything.
 
     .OUTPUTS
     DevEnv.Result objects with Component, Status and Detail.
     #>
-    # -WhatIf/-Confirm flow through to the component functions, which call ShouldProcess for each change
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Delegated to the component functions')]
+    # -WhatIf/-Confirm flow through to the functions that make the changes, which call ShouldProcess
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Delegated to Sync-DevEnvModule and Sync-DevEnv')]
     [CmdletBinding(SupportsShouldProcess)]
     [OutputType('DevEnv.Result')]
     param(
-        [ValidateSet('Font', 'Terminal', 'Prompt', 'VSCode')]
+        [ValidateSet('Packages', 'Font', 'Terminal', 'Prompt', 'VSCode', 'Git', 'Wsl')]
         [string[]]$Component = $script:Components,
         [string]$Manifest
     )
-    Invoke-DevEnvComponent -Verb Sync -Component $Component -Manifest $Manifest
+    try { Sync-DevEnvModule -ErrorAction Stop }
+    catch { New-DevEnvResult Module Failed $_.Exception.Message }
+    Sync-DevEnv -Component $Component -Manifest $Manifest
 }

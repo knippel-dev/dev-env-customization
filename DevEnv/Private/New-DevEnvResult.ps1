@@ -2,7 +2,7 @@
 # Status is one of:
 #   UpToDate     already set up, nothing to do
 #   Updated      set up or changed now
-#   NeedsUpdate  not set up yet (Get-DevEnvStatus, or Install-DevEnv -WhatIf)
+#   NeedsUpdate  not set up yet (Get-DevEnv, or Sync-DevEnv -WhatIf)
 #   NotFound     the app it customizes isn't installed, so it was skipped
 #   Removed      removed by Uninstall-DevEnv
 #   WouldRemove  would be removed (Uninstall-DevEnv -WhatIf)
