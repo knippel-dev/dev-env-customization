@@ -1,13 +1,15 @@
 # dev-env-customization
 This repo contains files for customizing the Windows Terminal (PowerShell, WSL) and VS Code Integrated Terminal with a custom dual line prompt using [Nerd Fonts](https://www.nerdfonts.com/). The prompt is written in plain PowerShell and bash, so no prompt engine needs to be installed. It also contains a custom color scheme for Windows Terminal to go with the custom prompt.
 
+- `manifests/default.psd1` - what gets set up: Nerd Font, Windows Terminal color scheme, VS Code settings and extensions (see [Customization](#customization))
 - `powershell/dualline-prompt.ps1` - prompt for PowerShell (Windows Terminal and VS Code)
 - `bash/dualline-prompt.sh` - the same prompt for bash (WSL Ubuntu)
-- `terminal/custom-color-scheme.json` - Windows Terminal color scheme
-- `vscode/` - VS Code appearance settings, the Dualline Dark color theme and extensions, with an install script
-- `fonts/install.ps1` - installs IosevkaTerm Nerd Font for the current user
+- `terminal/install.ps1` - applies the manifest's color scheme and font to Windows Terminal
+- `vscode/` - the Dualline Dark color theme, with an install script for it and the manifest's VS Code settings and extensions
+- `fonts/install.ps1` - installs the manifest's Nerd Font for the current user
 - `install.ps1` - applies everything: Nerd Font, Windows Terminal settings, PowerShell prompt and VS Code
 - `bootstrap.ps1` - sets up a new Windows machine: installs the tools below, clones this repo and runs `install.ps1`
+- `DevEnv/` - shared helpers used by the install scripts
 
 # Quick Start (new Windows machine)
 Open the built-in **Windows PowerShell** (no need to install anything first) and run:
@@ -26,7 +28,7 @@ It then clones this repo to `$HOME\code\dev-env-customization` and runs `install
 - `powershell/install.ps1` adds the prompt to your PowerShell 7 profile, using `-Variant VSCode` automatically in the VS Code terminal
 - `vscode/install.ps1` applies the VS Code settings, theme and extensions
 
-Running it again skips anything already done. Set `$env:DEVENV_DIR` first to clone somewhere else, or `$env:DEVENV_SKIP_INSTALL = '1'` to only install the tools and clone. If you already have the repo and PowerShell 7, run `install.ps1` directly.
+Running it again skips anything already done. Set `$env:DEVENV_DIR` first to clone somewhere else, `$env:DEVENV_SKIP_INSTALL = '1'` to only install the tools and clone, or `$env:DEVENV_MANIFEST` to use a personal manifest (see [Customization](#customization)). If you already have the repo and PowerShell 7, run `install.ps1` directly.
 
 Afterwards, restart Windows Terminal and VS Code, sign in to GitHub with `gh auth login` and, for WSL, follow step 4 below. The manual steps below are for setting things up by hand; their paths use `C:\code\dev-env-customization`, so change them to wherever the repo was cloned.
 
@@ -69,14 +71,13 @@ This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubu
     ```powershell
     & "C:\code\dev-env-customization\vscode\install.ps1"
     ```
+    - The settings and extensions come from the `VSCode` section of the manifest.
     - Settings are merged into your existing `settings.json`, so other settings are left alone. If anything changes, the original is backed up to `settings.json.bak`.
     - Extensions are installed with the `code` command, which needs VS Code on your PATH (the default for the VS Code installer). Extensions already installed are skipped.
     - `minimumContrastRatio` and `drawBoldTextInBrightColors` keep VS Code from adjusting the prompt colors, so they match Windows Terminal.
 
-# VS Code Files
-- `vscode/settings.json` - only the appearance settings. Add a setting here if you want it applied by the install script.
-- `vscode/extensions.txt` - one extension ID per line. Get your current list with `code --list-extensions`.
-- `vscode/theme/` - the Dualline Dark color theme, packaged and installed as a local extension by the install script (no Node or `vsce` needed).
+# VS Code Theme Files
+`vscode/theme/` is the Dualline Dark color theme, packaged and installed as a local extension by the install script (no Node or `vsce` needed).
 
 # Dualline Dark Theme
 VS Code's Default Dark Modern with the syntax colors swapped for the prompt palette. The window, sidebar and tab colors are unchanged.
@@ -105,6 +106,21 @@ The theme is derived from VS Code's MIT licensed default themes, see `vscode/the
 - Time (`HH:mm`)
 
 # Customization
-The color palette, directory truncation length and time format are set at the top of each script. Keep the PowerShell and bash scripts in sync if you use both.
+`manifests/default.psd1` describes what the install scripts set up:
+- `Font` - the Nerd Font to install (`Name`, the release zip) and the font family Windows Terminal and VS Code use (`Face`)
+- `Terminal.ColorScheme` - the Windows Terminal color scheme
+- `VSCode.Settings` and `VSCode.Extensions` - settings merged into VS Code's `settings.json`, and extensions to install
+
+To change any of it without editing the repo, create a personal manifest with only the values you want to change. It is merged over the default: sections merge key by key, and lists (like `Extensions`) replace the default list.
+```powershell
+# ~/.config/devenv/manifest.psd1
+@{
+    Font     = @{ Name = 'CascadiaCode'; Face = 'CaskaydiaCove Nerd Font' }
+    Terminal = @{ ColorScheme = @{ background = '#101010' } }
+}
+```
+The personal manifest is the first one found of: `install.ps1 -Manifest <path>`, `$env:DEVENV_MANIFEST`, `~/.config/devenv/manifest.psd1`. Then run `install.ps1` again.
+
+The prompt's color palette, directory truncation length and time format are still set at the top of each prompt script. Keep the PowerShell and bash scripts in sync if you use both.
 
 The prompt only runs `git` when inside a git repo, and runs it once per prompt, so it stays fast (a few milliseconds outside a repo).
