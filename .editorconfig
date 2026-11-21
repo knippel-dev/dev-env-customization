@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.sh]
+end_of_line = lf
+
+[*.md]
+# Two trailing spaces are a line break in Markdown
+trim_trailing_whitespace = false
+
+[vscode/theme/themes/*.json]
+indent_size = 2
