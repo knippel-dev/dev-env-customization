@@ -141,6 +141,7 @@ function Sync-DevEnvVSCode {
         New-DevEnvResult 'VSCode theme' NeedsUpdate "$($theme.Id)@$($theme.Version) is missing or changed"
     }
     else {
+        Write-Information "    Installing theme $($theme.Id)@$($theme.Version)"
         $vsix = Join-Path ([IO.Path]::GetTempPath()) 'dualline-theme.vsix'
         New-ThemeVsix $theme $vsix
         try {
@@ -162,7 +163,7 @@ function Sync-DevEnvVSCode {
     $failed = [Collections.Generic.List[string]]::new()
     foreach ($ext in $missing) {
         if (-not $PSCmdlet.ShouldProcess($ext, 'Install VS Code extension')) { continue }
-        Write-Verbose "Installing $ext"
+        Write-Information "    Installing extension $ext"
         code --install-extension $ext | Out-Null
         if ($LASTEXITCODE -eq 0) { $added.Add($ext) } else { $failed.Add($ext) }
     }

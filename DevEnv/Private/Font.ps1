@@ -42,7 +42,7 @@ function Sync-DevEnvFont {
     if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
     New-Item -ItemType Directory -Force $tmp | Out-Null
     try {
-        Write-Verbose "Downloading $font Nerd Font"
+        Write-Information "    Downloading $font Nerd Font"
         $zip = Join-Path $tmp "$font.zip"
         Invoke-WebRequest "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$font.zip" -OutFile $zip
         Expand-Archive -LiteralPath $zip -DestinationPath $tmp

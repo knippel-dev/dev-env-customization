@@ -32,9 +32,13 @@ function Sync-DevEnvPackages {
         return New-DevEnvResult Packages NotFound "winget was not found; install or update 'App Installer' from the Microsoft Store"
     }
 
+    # A running log of each package (shown by Install/Sync-DevEnv), padded so the states line up
+    $width = ($packages | Measure-Object -Property Length -Maximum).Maximum
     $missing = @(foreach ($id in $packages) {
             Write-Progress -Activity 'Checking packages' -Status $id
-            if (-not (Test-WingetPackage $id)) { $id }
+            $installed = Test-WingetPackage $id
+            Write-Information ("    {0}  {1}" -f $id.PadRight($width), $(if ($installed) { 'already installed' } else { 'missing' }))
+            if (-not $installed) { $id }
         })
     Write-Progress -Activity 'Checking packages' -Completed
     if (-not $missing) { return New-DevEnvResult Packages UpToDate "$($packages.Count) packages" }
@@ -42,13 +46,26 @@ function Sync-DevEnvPackages {
 
     $added = [Collections.Generic.List[string]]::new()
     $failed = [Collections.Generic.List[string]]::new()
+    $winget = (Get-Command winget).Source
     $i = 0
     foreach ($id in $missing) {
         $i++
         if (-not $PSCmdlet.ShouldProcess($id, 'Install with winget')) { continue }
-        Write-Progress -Activity 'Installing packages' -Status "$id ($i of $($missing.Count))" -PercentComplete (100 * ($i - 1) / $missing.Count)
-        winget install --id $id --exact --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Null
-        if ($LASTEXITCODE -eq 0) { $added.Add($id) } else { $failed.Add("$id (winget exit code $LASTEXITCODE)") }
+        $step = "[$i/$($missing.Count)] Installing $id"
+        Write-Progress -Activity 'Installing packages' -Status $step -PercentComplete (100 * ($i - 1) / $missing.Count)
+        # A line that stays in the scrollback, since winget's own output draws over the progress bar
+        Write-Information "    $step"
+        # Run straight in the console rather than through the pipeline, so winget shows its download and
+        # install progress (and its output doesn't end up in this function's results)
+        $process = Start-Process -FilePath $winget -NoNewWindow -Wait -PassThru -ArgumentList @(
+            'install', '--id', $id, '--exact', '--source', 'winget', '--silent',
+            '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity'
+        )
+        if ($process.ExitCode -eq 0) { $added.Add($id) }
+        else {
+            $failed.Add("$id (winget exit code $($process.ExitCode))")
+            Write-Information "    $id failed (winget exit code $($process.ExitCode))"
+        }
     }
     Write-Progress -Activity 'Installing packages' -Completed
     if ($added.Count) { Update-SessionPath }

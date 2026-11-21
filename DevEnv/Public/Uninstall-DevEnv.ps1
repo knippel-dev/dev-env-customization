@@ -54,6 +54,11 @@ function Uninstall-DevEnv {
     if (-not $WhatIfPreference -and -not $PSCmdlet.ShouldProcess($target, 'Remove')) {
         return
     }
+    # Show progress messages, unless the caller chose otherwise (like -InformationAction SilentlyContinue)
+    if (-not $PSBoundParameters.ContainsKey('InformationAction')) { $InformationPreference = 'Continue' }
     Invoke-DevEnvComponent -Verb Remove -Component $Component -Manifest $Manifest -Reverse
-    if ($everything) { Remove-DevEnvModule }
+    if ($everything) {
+        Write-Information '==> Removing Module'
+        Remove-DevEnvModule
+    }
 }
