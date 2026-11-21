@@ -3,6 +3,31 @@
 # want to change, at ~/.config/devenv/manifest.psd1 (or pass -Manifest <path>, or set $env:DEVENV_MANIFEST).
 # Sections merge key by key, so you can change a single color; lists (like Extensions) replace the default list.
 @{
+    # Apps installed with winget (IDs from: winget search <name>). bootstrap.ps1 installs PowerShell 7 and
+    # Git itself to clone the repo; the rest are installed by install.ps1. Uninstall leaves apps installed.
+    Packages = @(
+        'Microsoft.PowerShell'
+        'Git.Git'
+        'GitHub.cli'
+        'Microsoft.VisualStudioCode'
+        'Microsoft.PowerToys'
+        'Microsoft.AzureCLI'
+        'Anthropic.Claude'
+        'Anthropic.ClaudeCode'
+    )
+
+    # Global git config (git config --global <key> <value>). Put your identity in your personal manifest:
+    #   Git = @{ 'user.name' = 'Your Name'; 'user.email' = 'you@example.com' }
+    Git      = @{
+        'init.defaultBranch' = 'main'
+    }
+
+    # WSL: adds a line loading bash/dualline-prompt.sh to ~/.bashrc. Distro is the WSL distribution to set
+    # up; leave it empty for the default one.
+    Wsl      = @{
+        Distro = ''
+    }
+
     Font     = @{
         # Name of the release zip at https://github.com/ryanoasis/nerd-fonts/releases, without .zip
         Name = 'IosevkaTerm'

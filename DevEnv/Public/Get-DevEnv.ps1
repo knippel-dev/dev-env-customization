@@ -1,12 +1,13 @@
-function Get-DevEnvStatus {
+function Get-DevEnv {
     <#
     .SYNOPSIS
-    Shows which parts of the dev environment are set up and which aren't.
+    Shows which parts of the dev environment match the manifest and which don't.
 
     .DESCRIPTION
     Checks each component against the manifest without changing anything. A component reports UpToDate
-    when it matches the manifest, NeedsUpdate when Install-DevEnv would change it, and NotFound when the
-    app it customizes isn't installed.
+    when it matches the manifest, NeedsUpdate when Sync-DevEnv would change it, and NotFound when the app
+    it customizes isn't installed. Without -Component, the first row shows whether Install-DevEnv has made
+    the DevEnv commands available in every session.
 
     .PARAMETER Component
     Which components to check. Defaults to all of them.
@@ -16,12 +17,12 @@ function Get-DevEnvStatus {
     ~/.config/devenv/manifest.psd1 is used if present.
 
     .EXAMPLE
-    Get-DevEnvStatus
+    Get-DevEnv
 
     .EXAMPLE
-    Get-DevEnvStatus | Where-Object Status -ne UpToDate
+    Get-DevEnv | Where-Object Status -ne UpToDate
 
-    Lists only what Install-DevEnv would change.
+    Lists only what Sync-DevEnv would change.
 
     .OUTPUTS
     DevEnv.Result objects with Component, Status and Detail.
@@ -29,9 +30,10 @@ function Get-DevEnvStatus {
     [CmdletBinding()]
     [OutputType('DevEnv.Result')]
     param(
-        [ValidateSet('Font', 'Terminal', 'Prompt', 'VSCode')]
+        [ValidateSet('Packages', 'Font', 'Terminal', 'Prompt', 'VSCode', 'Git', 'Wsl')]
         [string[]]$Component = $script:Components,
         [string]$Manifest
     )
+    if (-not $PSBoundParameters.ContainsKey('Component')) { Sync-DevEnvModule -Check }
     Invoke-DevEnvComponent -Verb Sync -Component $Component -Manifest $Manifest -Parameters @{ Check = $true }
 }

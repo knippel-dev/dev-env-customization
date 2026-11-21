@@ -1,27 +1,38 @@
-# Sets up a new Windows machine for this repo: installs PowerShell 7, Git, GitHub CLI and VS Code with
-# winget, clones the repo and runs install.ps1 (Nerd Font, Windows Terminal, PowerShell prompt, VS Code).
+# Sets up a new Windows machine: installs PowerShell 7 and Git with winget, clones this repo and runs
+# install.ps1, which installs the rest of the apps in the manifest and applies all the customizations.
 # Runs on the Windows PowerShell 5.1 that ships with Windows, so nothing needs to be installed first:
 #   irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1 | iex
+# To pass parameters, run it as a script block instead:
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1))) -Manifest ~\my-manifest.psd1
+# Parameters (each can also be set with an environment variable before running):
+#   -Path         where to clone the repo ($env:DEVENV_DIR; default $HOME\code\dev-env-customization)
+#   -Manifest     a personal manifest for install.ps1 ($env:DEVENV_MANIFEST)
+#   -SkipInstall  only install PowerShell 7 and Git and clone, without running install.ps1 ($env:DEVENV_SKIP_INSTALL = '1')
 # Safe to run again; anything already installed or cloned is skipped.
-# Optional environment variables (set before running):
-#   DEVENV_DIR          where to clone the repo (default: $HOME\code\dev-env-customization)
-#   DEVENV_SKIP_INSTALL set to 1 to only install the tools and clone, without running install.ps1
-# Wrapped in a script block so settings like $ErrorActionPreference don't leak into the caller when piped to iex
+#
+# Everything is in a script block, with the arguments forwarded to it, so that when piped to iex neither
+# the parameters nor settings like $ErrorActionPreference leak into the caller's session.
 & {
+    param(
+        [string]$Path = $(if ($env:DEVENV_DIR) { $env:DEVENV_DIR } else { Join-Path $HOME 'code\dev-env-customization' }),
+        [string]$Manifest = $env:DEVENV_MANIFEST,
+        [switch]$SkipInstall = ($env:DEVENV_SKIP_INSTALL -eq '1')
+    )
     $ErrorActionPreference = 'Stop'
 
     $repoUrl = 'https://github.com/knippel-dev/dev-env-customization.git'
-    $repoDir = if ($env:DEVENV_DIR) { $env:DEVENV_DIR } else { Join-Path $HOME 'code\dev-env-customization' }
-
+    # Just what's needed to clone the repo and run install.ps1; the manifest's other apps are installed by it
     $packages = [ordered]@{
-        'Microsoft.PowerShell'       = 'PowerShell 7'
-        'Git.Git'                    = 'Git'
-        'GitHub.cli'                 = 'GitHub CLI'
-        'Microsoft.VisualStudioCode' = 'VS Code'
+        'Microsoft.PowerShell' = 'PowerShell 7'
+        'Git.Git'              = 'Git'
     }
 
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         throw "winget was not found. Install or update 'App Installer' from the Microsoft Store, then run this again."
+    }
+    if ($Manifest) {
+        # Resolved now, since install.ps1 runs from another process
+        $Manifest = (Resolve-Path -LiteralPath $Manifest).ProviderPath
     }
 
     foreach ($id in $packages.Keys) {
@@ -43,19 +54,21 @@
         [Environment]::GetEnvironmentVariable('Path', 'User')
     ) -join ';'
 
-    if (Test-Path -LiteralPath (Join-Path $repoDir '.git')) {
-        Write-Host "Repo already cloned at $repoDir"
+    if (Test-Path -LiteralPath (Join-Path $Path '.git')) {
+        Write-Host "Repo already cloned at $Path"
     }
     else {
-        Write-Host "Cloning $repoUrl to $repoDir"
-        New-Item -ItemType Directory -Force (Split-Path -Parent $repoDir) | Out-Null
-        git clone $repoUrl $repoDir
+        Write-Host "Cloning $repoUrl to $Path"
+        New-Item -ItemType Directory -Force (Split-Path -Parent $Path) | Out-Null
+        git clone $repoUrl $Path
         if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit code $LASTEXITCODE)" }
     }
 
     # install.ps1 needs PowerShell 7, so run it with pwsh rather than in this session
-    if ($env:DEVENV_SKIP_INSTALL -ne '1') {
-        pwsh -NoProfile -File (Join-Path $repoDir 'install.ps1')
+    if (-not $SkipInstall) {
+        $installArgs = @('-NoProfile', '-File', (Join-Path $Path 'install.ps1'))
+        if ($Manifest) { $installArgs += '-Manifest', $Manifest }
+        pwsh @installArgs
         if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed (exit code $LASTEXITCODE)" }
     }
 
@@ -63,5 +76,5 @@
     Write-Host 'Done. Remaining steps:'
     Write-Host '  - Open a new terminal (restart Windows Terminal and VS Code) to pick up the PATH, font and prompt'
     Write-Host '  - Sign in to GitHub:  gh auth login'
-    Write-Host '  - For WSL, source bash/dualline-prompt.sh from ~/.bashrc (see README.md)'
-}
+    Write-Host '  - If you install WSL later, run install.ps1 -Component Wsl to add the prompt there'
+} @args
