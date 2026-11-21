@@ -5,12 +5,15 @@ function Write-FileWithRetry {
         [Parameter(Mandatory)]
         [string]$Path,
         [Parameter(Mandatory)]
+        [AllowEmptyString()]
         [string]$Value,
+        # Don't add a newline after $Value
+        [switch]$NoNewline,
         [int]$Attempts = 5
     )
     for ($attempt = 1; ; $attempt++) {
         try {
-            Set-Content -LiteralPath $Path -Value $Value -Encoding utf8NoBOM -ErrorAction Stop
+            Set-Content -LiteralPath $Path -Value $Value -Encoding utf8NoBOM -NoNewline:$NoNewline -ErrorAction Stop
             return
         }
         catch [IO.IOException] {

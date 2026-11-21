@@ -17,8 +17,7 @@ function Get-DevEnvManifestPath {
 # Returns the default manifest with the personal manifest (see Get-DevEnvManifestPath) merged over it
 function Get-DevEnvManifest {
     param([string]$Path)
-    $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $manifest = Import-PowerShellDataFile -LiteralPath (Join-Path $repoRoot 'manifests\default.psd1')
+    $manifest = Import-PowerShellDataFile -LiteralPath (Join-Path $script:RepoRoot 'manifests\default.psd1')
     $Path = Get-DevEnvManifestPath $Path
     if ($Path) {
         $manifest = Merge-Hashtable $manifest (Import-PowerShellDataFile -LiteralPath $Path)
