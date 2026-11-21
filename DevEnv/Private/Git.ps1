@@ -1,7 +1,7 @@
 # Git component: applies the manifest's global git config (git config --global <key> <value>).
 
 # The manifest's settings as git config strings, sorted so they're applied in the same order every time
-function Get-GitWantedSettings([Collections.IDictionary]$Config) {
+function Get-GitWantedSetting([Collections.IDictionary]$Config) {
     $wanted = [ordered]@{}
     if (-not $Config.Git) { return $wanted }
     foreach ($key in $Config.Git.Keys | Sort-Object) {
@@ -25,7 +25,7 @@ function Sync-DevEnvGit {
         # Only report what would change
         [switch]$Check
     )
-    $wanted = Get-GitWantedSettings $Config
+    $wanted = Get-GitWantedSetting $Config
     if (-not $wanted.Count) { return New-DevEnvResult Git UpToDate 'No git settings in the manifest' }
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return New-DevEnvResult Git NotFound 'Git is not installed' }
 
@@ -50,7 +50,7 @@ function Remove-DevEnvGit {
         [Parameter(Mandatory)]
         [Collections.IDictionary]$Config
     )
-    $wanted = Get-GitWantedSettings $Config
+    $wanted = Get-GitWantedSetting $Config
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return New-DevEnvResult Git NotFound 'Git is not installed' }
     $ours = @($wanted.Keys | Where-Object { (Get-GitGlobalSetting $_) -ceq $wanted[$_] })
     if (-not $ours) { return New-DevEnvResult Git NotInstalled 'No global settings with the manifest''s values' }

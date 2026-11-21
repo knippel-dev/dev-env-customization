@@ -9,7 +9,7 @@ function Test-WingetPackage([string]$Id) {
 
 # Installers add to PATH in the registry; add any new entries to this session so later components (like Git
 # and VS Code) can use the new commands without opening a new terminal
-function Update-SessionPath {
+function Sync-SessionPath {
     $current = $env:Path -split ';' | Where-Object { $_ }
     $registry = foreach ($scope in 'Machine', 'User') {
         [Environment]::GetEnvironmentVariable('Path', $scope) -split ';' | Where-Object { $_ }
@@ -19,6 +19,7 @@ function Update-SessionPath {
 }
 
 function Sync-DevEnvPackages {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Named after the Packages component')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
@@ -68,7 +69,7 @@ function Sync-DevEnvPackages {
         }
     }
     Write-Progress -Activity 'Installing packages' -Completed
-    if ($added.Count) { Update-SessionPath }
+    if ($added.Count) { Sync-SessionPath }
 
     if ($failed.Count) {
         $detail = "Could not install: $($failed -join ', ')"
@@ -80,6 +81,9 @@ function Sync-DevEnvPackages {
 }
 
 function Remove-DevEnvPackages {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseSingularNouns', '', Justification = 'Named after the Packages component')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Changes nothing: apps are left installed')]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Every component function takes -Config')]
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]

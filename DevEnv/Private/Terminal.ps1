@@ -22,6 +22,8 @@ function Get-TerminalScheme([Collections.IDictionary]$Config) {
 }
 
 function Sync-DevEnvTerminal {
+    # -WhatIf flows through to Update-JsonSettingsFile, which calls ShouldProcess
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Delegated to Update-JsonSettingsFile')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
@@ -56,6 +58,8 @@ function Sync-DevEnvTerminal {
 
 # Removes the scheme, and the default color scheme and font where they're still the manifest's
 function Remove-DevEnvTerminal {
+    # -WhatIf flows through to Update-JsonSettingsFile, which calls ShouldProcess
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSShouldProcess', '', Justification = 'Delegated to Update-JsonSettingsFile')]
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]

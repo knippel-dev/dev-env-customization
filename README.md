@@ -1,52 +1,55 @@
 # dev-env-customization
-This repo contains files for customizing the Windows Terminal (PowerShell, WSL) and VS Code Integrated Terminal with a custom dual line prompt using [Nerd Fonts](https://www.nerdfonts.com/). The prompt is written in plain PowerShell and bash, so no prompt engine needs to be installed. It also contains a custom color scheme for Windows Terminal to go with the custom prompt.
 
-- `manifests/default.psd1` - what gets set up: apps, Nerd Font, Windows Terminal color scheme, VS Code settings and extensions, git config (see [Customization](#customization))
-- `DevEnv/` - the PowerShell module that sets everything up (see [Commands](#commands))
-- `install.ps1` - installs DevEnv from the repo by running `Install-DevEnv`, before its commands are available
-- `bootstrap.ps1` - sets up a new Windows machine: installs PowerShell 7 and Git, clones this repo and runs `install.ps1`
-- `powershell/dualline-prompt.ps1` - prompt for PowerShell (Windows Terminal and VS Code)
-- `bash/dualline-prompt.sh` - the same prompt for bash (WSL Ubuntu)
-- `vscode/theme/` - the Dualline Dark color theme for VS Code
+[![CI](https://github.com/knippel-dev/dev-env-customization/actions/workflows/ci.yml/badge.svg)](https://github.com/knippel-dev/dev-env-customization/actions/workflows/ci.yml)
 
-# Quick Start (new Windows machine)
-Open the built-in **Windows PowerShell** (no need to install anything first) and run:
+Sets up a Windows dev environment from one manifest: apps, a Nerd Font, Windows Terminal colors, a dual line prompt for PowerShell and bash (WSL), VS Code settings, theme and extensions, and git config. It runs as a PowerShell module, `DevEnv`, so you can preview changes, check what's set up, re-sync after changing the manifest, and remove it all again.
+
+The prompt is plain PowerShell and bash, so no prompt engine is needed.
+
+## Quick start (new Windows machine)
+Open the built-in **Windows PowerShell** (nothing needs to be installed first) and run:
 ```powershell
 irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1 | iex
 ```
-This uses `winget` to install [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) (which the prompt and the `DevEnv` module need) and [Git](https://git-scm.com/) if they're missing, clones this repo to `$HOME\code\dev-env-customization` and runs `install.ps1`. That makes the `DevEnv` commands available in every PowerShell session (see [Commands](#commands)) and sets up each of these components, which you can also sync on their own:
-- `Packages` installs the apps in the manifest with winget: PowerShell 7, Git, GitHub CLI, VS Code, PowerToys, Azure CLI, Claude and Claude Code
-- `Font` installs IosevkaTerm Nerd Font for the current user (no admin needed)
-- `Terminal` adds the Custom color scheme to Windows Terminal and makes it and the Nerd Font the defaults for all profiles
-- `Prompt` generates the prompt's config from the manifest and adds the prompt to your PowerShell 7 profile, using `-Variant VSCode` automatically in the VS Code terminal
-- `VSCode` applies the VS Code settings, theme and extensions
-- `Git` applies global git config, like `init.defaultBranch`
-- `Wsl` adds the bash prompt to `~/.bashrc` in WSL, if WSL is installed
+This installs [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows) and [Git](https://git-scm.com/) with `winget` if they're missing, clones this repo to `$HOME\code\dev-env-customization` and runs `install.ps1`. That makes the `DevEnv` commands available in every PowerShell session and sets up all the [components](#components). It's safe to run again: anything already done is skipped.
 
-Running it again skips anything already done. Settings files are merged rather than replaced, and the original is backed up to `<file>.bak` whenever one changes. If you already have the repo and PowerShell 7, run `install.ps1` directly.
+Afterwards, restart Windows Terminal and VS Code and sign in to GitHub with `gh auth login`.
 
 To pass options, run the bootstrap as a script block:
 ```powershell
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/knippel-dev/dev-env-customization/main/bootstrap.ps1))) -Manifest ~\my-manifest.psd1
 ```
-- `-Path` - where to clone the repo (default `$HOME\code\dev-env-customization`)
-- `-Manifest` - a personal manifest (see [Customization](#customization))
-- `-SkipInstall` - only install PowerShell 7 and Git and clone, without running `install.ps1`
+| Option | Environment variable | Does |
+|---|---|---|
+| `-Path` | `DEVENV_DIR` | Where to clone the repo (default `$HOME\code\dev-env-customization`) |
+| `-Manifest` | `DEVENV_MANIFEST` | A personal manifest (see [Customization](#customization)) |
+| `-Ref` | `DEVENV_REF` | A tag or branch to clone, like `v0.5.0` (default `main`) |
+| `-SkipInstall` | `DEVENV_SKIP_INSTALL = '1'` | Only install PowerShell 7 and Git and clone, without running `install.ps1` |
 
-These can also be set with `$env:DEVENV_DIR`, `$env:DEVENV_MANIFEST` and `$env:DEVENV_SKIP_INSTALL = '1'` before using the `irm | iex` form.
+The environment variables work with the `irm | iex` form. If you already have the repo and PowerShell 7, run `install.ps1` directly.
 
-Afterwards, restart Windows Terminal and VS Code and sign in to GitHub with `gh auth login`. If you install WSL later, run `Sync-DevEnv -Component Wsl`. The manual steps below are for setting things up by hand; their paths use `C:\code\dev-env-customization`, so change them to wherever the repo was cloned.
+## Components
+| Component | Sets up |
+|---|---|
+| `Packages` | Apps from the manifest, with winget: PowerShell 7, Git, GitHub CLI, VS Code, PowerToys, Azure CLI, Claude and Claude Code |
+| `Font` | IosevkaTerm Nerd Font, for the current user (no admin needed) |
+| `Terminal` | The Custom color scheme in Windows Terminal, and it and the Nerd Font as the defaults for all profiles |
+| `Prompt` | The [prompt](#prompt)'s config from the manifest, and the prompt in your PowerShell 7 profile (using `-Variant VSCode` in the VS Code terminal) |
+| `VSCode` | VS Code settings, the [Dualline Dark theme](#vs-code-theme) and extensions |
+| `Git` | Global git config, like `init.defaultBranch` |
+| `Wsl` | The bash prompt in `~/.bashrc` in WSL, loaded from the Windows copy of the repo through `/mnt/c` |
 
-# Commands
-The `DevEnv` module in the repo has four commands. Each takes `-Component` (`Packages`, `Font`, `Terminal`, `Prompt`, `VSCode`, `Git`, `Wsl`; all of them by default) and `-Manifest`, and returns one row per thing it checked or changed. `Get-Help <command> -Full` has the details.
+Settings files are merged rather than replaced, and the original is backed up to `<file>.bak` whenever one changes.
 
+## Commands
 | Command | Does |
 |---|---|
-| `Install-DevEnv` | Installs DevEnv: adds the repo folder to your user `PSModulePath`, so these commands work in every PowerShell session without `Import-Module`, then runs `Sync-DevEnv`. `install.ps1` runs it. |
+| `Install-DevEnv` | Adds the repo folder to your user `PSModulePath`, so these commands work in every PowerShell session without `Import-Module`, then runs `Sync-DevEnv`. `install.ps1` runs it. |
 | `Sync-DevEnv` | Makes the machine match the manifest. Run it any time, like after changing your manifest or pulling the repo. |
 | `Get-DevEnv` | Shows what matches the manifest and what `Sync-DevEnv` would change, without changing anything. |
 | `Uninstall-DevEnv` | Removes the customizations and the `PSModulePath` entry (asks to confirm). With `-Component`, removes only those components. |
 
+Each takes `-Component` (any of the [components](#components); all of them by default) and `-Manifest`, and returns one row per thing it checked or changed. `Get-Help <command> -Full` has the details.
 ```powershell
 Get-DevEnv                               # what's set up, and what Sync-DevEnv would change
 Sync-DevEnv -WhatIf                      # preview the changes
@@ -55,60 +58,52 @@ Sync-DevEnv -Component Terminal, VSCode  # only some components
 Uninstall-DevEnv -WhatIf                 # preview what would be removed
 Uninstall-DevEnv                         # remove everything
 ```
-`install.ps1` takes the same `-Component`, `-Manifest` and `-WhatIf` parameters as `Install-DevEnv`. Before `Install-DevEnv` has run (or in a terminal opened before it ran), load the commands with `Import-Module "$HOME\code\dev-env-customization\DevEnv"`.
+`install.ps1` takes the same `-Component`, `-Manifest` and `-WhatIf` parameters as `Install-DevEnv`. In a terminal opened before `Install-DevEnv` ran, load the commands with `Import-Module "$HOME\code\dev-env-customization\DevEnv"`.
 
-`Uninstall-DevEnv` only undoes what DevEnv set: the color scheme, VS Code and git settings that still have the manifest's values (anything you changed afterwards is kept), the lines that load the prompt in your PowerShell profile and `~/.bashrc`, the Dualline Dark theme and the Nerd Font. Apps, other VS Code extensions and the repo itself are left in place. Close Windows Terminal and VS Code before removing the font, since they keep it in use.
+`Uninstall-DevEnv` only undoes what DevEnv set: the color scheme, VS Code and git settings that still have the manifest's values (anything you changed afterwards is kept), the lines that load the prompt in your PowerShell profile and `~/.bashrc`, the generated prompt config, the Dualline Dark theme and the Nerd Font. Apps, other VS Code extensions and the repo itself are left in place. Close Windows Terminal and VS Code before removing the font, since they keep it in use.
 
-# Setup
-This guide is geared towards Windows Terminals using PowerShell Core and WSL Ubuntu Bash.
+## Customization
+`manifests/default.psd1` describes what `Sync-DevEnv` sets up:
+- `Packages` - winget IDs of the apps to install (find them with `winget search <name>`)
+- `Git` - global git config, as `'key' = 'value'`. Put your identity in your personal manifest rather than the default, since the default is shared: `Git = @{ 'user.name' = 'Your Name'; 'user.email' = 'you@example.com' }`
+- `Wsl.Distro` - the WSL distribution to add the bash prompt to; empty for the default one
+- `Font` - the Nerd Font to install (`Name`, the release zip) and the font family Windows Terminal and VS Code use (`Face`)
+- `Terminal.ColorScheme` - the Windows Terminal color scheme
+- `VSCode.Settings` and `VSCode.Extensions` - settings merged into VS Code's `settings.json`, and extensions to install
+- `Prompt` - the prompt, for both PowerShell and bash:
+  - `Palette` - `section0`, `section1`, ... are the segment backgrounds from left to right; `textlight` / `textdark` the text on them; `frame` the lines joining the two prompt lines; `chevron` and `error` the chevron normally and after a failed command
+  - `Segments` - the [segments](#prompt) from left to right. Each is drawn on the next section color, so the palette needs a `section` for each one.
+  - `VSCodeSegments` - the segments in the VS Code integrated terminal (by default, docker one section further right)
+  - `DirTruncationLength` - how many folders of the path to show
+  - `TimeFormat` - a .NET time format such as `HH:mm` or `h:mm tt`, converted for bash
 
-1. Install a [Nerd Font](https://www.nerdfonts.com/)
-    - Nerd Fonts provide the nifty icons which allow you to create custom prompts beyond the basic ASCII.
-    - The choice is up to you but the one used in the preview pictures is 'IosevkaTerm Nerd Font'.
-    - * Mono fonts may cause the icons to become very small
+To change any of it without editing the repo, create a personal manifest with only the values you want to change. It's merged over the default: sections merge key by key, and lists (like `Extensions`) replace the default list.
+```powershell
+# ~/.config/devenv/manifest.psd1
+@{
+    Git      = @{ 'user.name' = 'Your Name'; 'user.email' = 'you@example.com' }
+    Font     = @{ Name = 'CascadiaCode'; Face = 'CaskaydiaCove Nerd Font' }
+    Terminal = @{ ColorScheme = @{ background = '#101010' } }
+    Prompt   = @{ Palette = @{ section0 = '#1A1A2E' }; TimeFormat = 'h:mm tt' }
+}
+```
+The personal manifest is the first one found of: `-Manifest <path>` (on `install.ps1` or any `DevEnv` command), `$env:DEVENV_MANIFEST`, `~/.config/devenv/manifest.psd1`. Then run `Sync-DevEnv` (or `Get-DevEnv` first, to see what would change). Invalid prompt settings, like an unknown segment or a missing section color, are reported as `Failed` with what's wrong.
 
-2. Get a local copy of the customization files
-    - You can either clone this repository or download a copy locally. Cloning makes it easy to pick up changes made in the repository.
-    - If you are using WSL then this also needs to be done within the distribution if you want the custom prompt to apply there.
+## Prompt
+Line 1 shows these segments, in the order set by the manifest:
+- `os` - OS icon, plus the username only when running over SSH, or `Administrator` / `root` in red when running elevated
+- `path` - directory truncated to the last 3 folders, starting at the repo folder when inside a git repo
+- `git` - branch and status symbols (`=` conflicted, `$` stashed, `✘` deleted, `»` renamed, `!` modified, `+` staged, `?` untracked, `⇡⇣⇕` ahead/behind)
+- `docker` - Docker context, only in folders containing a Dockerfile or compose file and when the context is not the default
+- `time` - the time (`HH:mm`)
+- `gap` - an empty section, for the color gradient
 
-3. Configure PowerShell to use the prompt
-    - Dot source the script from your PowerShell [Profile](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_profiles?view=powershell-7.3). To have the prompt apply more universally for your user, update the 'Current User, All Hosts' profile.
-    ```powershell
-    . "C:\code\dev-env-customization\powershell\dualline-prompt.ps1"
-    ```
-    - For the VS Code Integrated Terminal, add `-Variant VSCode`, which uses the manifest's `VSCodeSegments` (by default, the docker section one place to the right).
-    ```powershell
-    . "C:\code\dev-env-customization\powershell\dualline-prompt.ps1" -Variant VSCode
-    ```
-    - Open a new terminal, or run `. $PROFILE`, to load it.
+Line 2 is the chevron you type after. It turns red when the last command failed.
 
-4. Configure bash (WSL) to use the prompt
-    - `Sync-DevEnv -Component Wsl` does this for you, loading the script from the Windows copy of the repo (through `/mnt/c`).
-    - By hand: source the script from your `~/.bashrc`. Requires bash 4.2 or newer.
-    ```bash
-    source ~/repos/dev-env-customization/bash/dualline-prompt.sh
-    ```
-    - Open a new terminal, or run `source ~/.bashrc`, to load it.
+`Sync-DevEnv` generates each shell's config from the manifest (`powershell/dualline-prompt.config.psd1` and `bash/dualline-prompt.config.sh`, not committed), so the two prompts always match; open a new terminal to see changes. The prompt only runs `git` inside a git repo, once per prompt, so it stays fast. To set it up by hand instead, see [docs/manual-setup.md](docs/manual-setup.md).
 
-5. Configure [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/tutorials/custom-prompt-setup#install-a-nerd-font) to use Nerd Font
-    - Just focus on the Nerd Font section as the rest of the guide goes into using Oh My Posh prompt engine.
-    - Windows Terminal > Settings > {defaults | specific profile} > Appearance > Font Face > {Nerd Font you installed}
-
-6. Configure VS Code
-    - Run the install script for the `VSCode` component to install the Dualline Dark theme, apply the appearance settings (color theme, Nerd Font for the editor and [Integrated Terminal](https://code.visualstudio.com/docs/terminal/appearance#_text-style), font sizes and weights, zoom level, terminal color handling) and install the extensions.
-    ```powershell
-    & "C:\code\dev-env-customization\install.ps1" -Component VSCode
-    ```
-    - The settings and extensions come from the `VSCode` section of the manifest.
-    - Settings are merged into your existing `settings.json`, so other settings are left alone. If anything changes, the original is backed up to `settings.json.bak`.
-    - Extensions are installed with the `code` command, which needs VS Code on your PATH (the default for the VS Code installer). Extensions already installed are skipped.
-    - `minimumContrastRatio` and `drawBoldTextInBrightColors` keep VS Code from adjusting the prompt colors, so they match Windows Terminal.
-
-# VS Code Theme Files
-`vscode/theme/` is the Dualline Dark color theme, packaged and installed as a local extension by the install script (no Node or `vsce` needed).
-
-# Dualline Dark Theme
-VS Code's Default Dark Modern with the syntax colors swapped for the prompt palette. The window, sidebar and tab colors are unchanged.
+## VS Code theme
+Dualline Dark is VS Code's Default Dark Modern with the syntax colors swapped for the prompt palette. The window, sidebar and tab colors are unchanged. `vscode/theme/` is packaged and installed as a local extension by `Sync-DevEnv` (no Node or `vsce` needed).
 
 | Syntax | Color | Palette |
 |---|---|---|
@@ -124,45 +119,29 @@ VS Code's Default Dark Modern with the syntax colors swapped for the prompt pale
 
 To change a color, edit the hex values in `vscode/theme/themes/dualline-dark-color-theme.json` (search for the old value, since each color is used by several rules) and run `Sync-DevEnv -Component VSCode`. It reinstalls the theme whenever a theme file changed. If VS Code doesn't pick up the change, run **Developer: Reload Window** from the command palette.
 
-The theme is derived from VS Code's MIT licensed default themes, see `vscode/theme/NOTICE.txt`.
+The theme is derived from VS Code's MIT licensed default themes; see `vscode/theme/NOTICE.txt`.
 
-# Prompt Segments
-Line 1 shows these segments, in the order set by the manifest (see [Customization](#customization)):
-- `os` - OS icon, plus the username only when running over SSH, or `Administrator` / `root` in red when running elevated
-- `path` - directory truncated to the last 3 folders, starting at the repo folder when inside a git repo
-- `git` - branch and status symbols (`=` conflicted, `$` stashed, `✘` deleted, `»` renamed, `!` modified, `+` staged, `?` untracked, `⇡⇣⇕` ahead/behind)
-- `docker` - Docker context, only in folders containing a Dockerfile or compose file and when the context is not the default
-- `time` - the time (`HH:mm`)
-- `gap` - an empty section, for the color gradient
+## Repo layout
+| Path | Contents |
+|---|---|
+| `bootstrap.ps1` | Sets up a new machine: installs PowerShell 7 and Git, clones the repo, runs `install.ps1` |
+| `install.ps1` | Runs `Install-DevEnv` from the repo, before the commands are available |
+| `manifests/default.psd1` | What gets set up |
+| `DevEnv/` | The PowerShell module: `Public/` has the commands, `Private/` one file per component plus shared helpers |
+| `powershell/`, `bash/` | The prompt scripts |
+| `vscode/theme/` | The Dualline Dark color theme |
+| `tests/` | Pester tests and `Invoke-Checks.ps1` |
+| `docs/` | [Manual setup](docs/manual-setup.md) |
 
-Line 2 is the chevron you type after. It turns red when the last command failed.
-
-# Customization
-`manifests/default.psd1` describes what `Sync-DevEnv` sets up:
-- `Packages` - winget IDs of the apps to install (find them with `winget search <name>`)
-- `Git` - global git config, as `'key' = 'value'`. Put your identity in your personal manifest rather than the default, since the default is shared: `Git = @{ 'user.name' = 'Your Name'; 'user.email' = 'you@example.com' }`
-- `Wsl.Distro` - the WSL distribution to add the bash prompt to; empty for the default one
-- `Font` - the Nerd Font to install (`Name`, the release zip) and the font family Windows Terminal and VS Code use (`Face`)
-- `Terminal.ColorScheme` - the Windows Terminal color scheme
-- `VSCode.Settings` and `VSCode.Extensions` - settings merged into VS Code's `settings.json`, and extensions to install
-- `Prompt` - the prompt, for both PowerShell and bash:
-  - `Palette` - `section0`, `section1`, ... are the segment backgrounds from left to right; `textlight` / `textdark` the text on them; `frame` the lines joining the two prompt lines; `chevron` and `error` the chevron normally and after a failed command
-  - `Segments` - the segments from left to right (see [Prompt Segments](#prompt-segments)). Each is drawn on the next section color, so the palette needs a `section` for each one.
-  - `VSCodeSegments` - the segments in the VS Code integrated terminal (by default, docker one section further right)
-  - `DirTruncationLength` - how many folders of the path to show
-  - `TimeFormat` - a .NET time format such as `HH:mm` or `h:mm tt`, converted for bash
-
-  `Sync-DevEnv` generates each shell's config from this (`powershell/dualline-prompt.config.psd1` and `bash/dualline-prompt.config.sh`, not committed), so the two prompts always match. Open a new terminal to see changes.
-
-To change any of it without editing the repo, create a personal manifest with only the values you want to change. It is merged over the default: sections merge key by key, and lists (like `Extensions`) replace the default list.
+## Development
+Run the same checks as CI (PSScriptAnalyzer and the Pester tests) before opening a pull request:
 ```powershell
-# ~/.config/devenv/manifest.psd1
-@{
-    Font     = @{ Name = 'CascadiaCode'; Face = 'CaskaydiaCove Nerd Font' }
-    Terminal = @{ ColorScheme = @{ background = '#101010' } }
-    Prompt   = @{ Palette = @{ section0 = '#1A1A2E' }; TimeFormat = 'h:mm tt' }
-}
+Install-Module Pester, PSScriptAnalyzer -Scope CurrentUser -SkipPublisherCheck   # once
+./tests/Invoke-Checks.ps1
 ```
-The personal manifest is the first one found of: `-Manifest <path>` (on `install.ps1` or any `DevEnv` command), `$env:DEVENV_MANIFEST`, `~/.config/devenv/manifest.psd1`. Then run `Sync-DevEnv` (or `Get-DevEnv` first, to see what would change).
+The tests don't change your machine: they work on temporary files, a throwaway registry key and a temporary git config, with winget and WSL mocked (bash runs in Git Bash).
 
-The prompt only runs `git` when inside a git repo, and runs it once per prompt, so it stays fast (a few milliseconds outside a repo).
+Each change goes through a pull request to `main`, which [CI](.github/workflows/ci.yml) checks. `main` is what `bootstrap.ps1` installs, so it has to keep working. Releases are tagged `v<version>` from the `ModuleVersion` in `DevEnv/DevEnv.psd1`, with notes in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+[MIT](LICENSE)

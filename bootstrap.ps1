@@ -8,6 +8,7 @@
 #   -Path         where to clone the repo ($env:DEVENV_DIR; default $HOME\code\dev-env-customization)
 #   -Manifest     a personal manifest for install.ps1 ($env:DEVENV_MANIFEST)
 #   -SkipInstall  only install PowerShell 7 and Git and clone, without running install.ps1 ($env:DEVENV_SKIP_INSTALL = '1')
+#   -Ref          a tag or branch to clone, like v0.5.0 ($env:DEVENV_REF; default main). Only used for a new clone.
 # Safe to run again; anything already installed or cloned is skipped.
 #
 # Everything is in a script block, with the arguments forwarded to it, so that when piped to iex neither
@@ -16,9 +17,12 @@
     param(
         [string]$Path = $(if ($env:DEVENV_DIR) { $env:DEVENV_DIR } else { Join-Path $HOME 'code\dev-env-customization' }),
         [string]$Manifest = $env:DEVENV_MANIFEST,
-        [switch]$SkipInstall = ($env:DEVENV_SKIP_INSTALL -eq '1')
+        [switch]$SkipInstall = ($env:DEVENV_SKIP_INSTALL -eq '1'),
+        [string]$Ref = $env:DEVENV_REF
     )
     $ErrorActionPreference = 'Stop'
+    # Show the progress messages below (Write-Information is hidden by default)
+    $InformationPreference = 'Continue'
 
     $repoUrl = 'https://github.com/knippel-dev/dev-env-customization.git'
     # Just what's needed to clone the repo and run install.ps1; the manifest's other apps are installed by it
@@ -40,10 +44,10 @@
         # winget list exits non-zero when the package isn't installed
         winget list --id $id --exact --accept-source-agreements | Out-Null
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "$name already installed"
+            Write-Information "$name already installed"
             continue
         }
-        Write-Host "Installing $name"
+        Write-Information "Installing $name"
         winget install --id $id --exact --source winget --silent --accept-package-agreements --accept-source-agreements
         if ($LASTEXITCODE -ne 0) { throw "Installing $name failed (winget exit code $LASTEXITCODE)" }
     }
@@ -55,12 +59,14 @@
     ) -join ';'
 
     if (Test-Path -LiteralPath (Join-Path $Path '.git')) {
-        Write-Host "Repo already cloned at $Path"
+        Write-Information "Repo already cloned at $Path"
+        if ($Ref) { Write-Warning "-Ref $Ref was ignored, since the repo is already cloned. Use git checkout $Ref there instead." }
     }
     else {
-        Write-Host "Cloning $repoUrl to $Path"
+        Write-Information "Cloning $repoUrl$(if ($Ref) { " ($Ref)" }) to $Path"
         New-Item -ItemType Directory -Force (Split-Path -Parent $Path) | Out-Null
-        git clone $repoUrl $Path
+        $cloneArgs = @('clone') + @(if ($Ref) { '--branch', $Ref }) + @($repoUrl, $Path)
+        git @cloneArgs
         if ($LASTEXITCODE -ne 0) { throw "git clone failed (exit code $LASTEXITCODE)" }
     }
 
@@ -72,9 +78,9 @@
         if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed (exit code $LASTEXITCODE)" }
     }
 
-    Write-Host ''
-    Write-Host 'Done. Remaining steps:'
-    Write-Host '  - Open a new terminal (restart Windows Terminal and VS Code) to pick up the PATH, font and prompt'
-    Write-Host '  - Sign in to GitHub:  gh auth login'
-    Write-Host '  - If you install WSL later, run install.ps1 -Component Wsl to add the prompt there'
+    Write-Information ' '
+    Write-Information 'Done. Remaining steps:'
+    Write-Information '  - Open a new terminal (restart Windows Terminal and VS Code) to pick up the PATH, font and prompt'
+    Write-Information '  - Sign in to GitHub:  gh auth login'
+    Write-Information '  - If you install WSL later, run Sync-DevEnv -Component Wsl to add the prompt there'
 } @args
