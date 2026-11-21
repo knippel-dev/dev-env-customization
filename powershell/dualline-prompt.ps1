@@ -44,25 +44,27 @@ $script:Glyph = @{
 $script:Esc = [char]27
 $script:Reset = "$Esc[0m"
 
-function script:Fg([string]$name) {
+# Escape sequences for each palette color, built once here instead of on every prompt
+$script:PromptFg = @{}
+$script:PromptBg = @{}
+foreach ($name in $PromptPalette.Keys) {
     $hex = $PromptPalette[$name]
-    $r = [Convert]::ToInt32($hex.Substring(1, 2), 16)
-    $g = [Convert]::ToInt32($hex.Substring(3, 2), 16)
-    $b = [Convert]::ToInt32($hex.Substring(5, 2), 16)
-    "$Esc[38;2;$r;$g;${b}m"
+    $rgb = '{0};{1};{2}' -f [Convert]::ToInt32($hex.Substring(1, 2), 16),
+        [Convert]::ToInt32($hex.Substring(3, 2), 16),
+        [Convert]::ToInt32($hex.Substring(5, 2), 16)
+    $script:PromptFg[$name] = "$Esc[38;2;${rgb}m"
+    $script:PromptBg[$name] = "$Esc[48;2;${rgb}m"
 }
-
-function script:Bg([string]$name) {
-    $hex = $PromptPalette[$name]
-    $r = [Convert]::ToInt32($hex.Substring(1, 2), 16)
-    $g = [Convert]::ToInt32($hex.Substring(3, 2), 16)
-    $b = [Convert]::ToInt32($hex.Substring(5, 2), 16)
-    "$Esc[48;2;$r;$g;${b}m"
-}
+Remove-Variable name, hex, rgb
 
 $script:Bold = "$Esc[1m"
 $script:Red = "$Esc[31m"
 $script:White = "$Esc[37m"
+
+# These can't change during a session, so work them out once
+$script:PromptOsSymbol = if ($IsLinux) { $Glyph.Linux } else { $Glyph.Windows }
+$script:PromptIsAdmin = $IsWindows -and ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$script:PromptShowUser = $PromptIsAdmin -or [bool]$env:SSH_CONNECTION
 
 # Walk up from the current directory looking for .git, so we only spawn git inside repos.
 function script:Get-GitRoot([string]$path) {
@@ -107,7 +109,7 @@ function script:Get-PromptGit([string]$gitRoot) {
     if ($LASTEXITCODE -ne 0) { return $null }
 
     $branch = ''; $ahead = 0; $behind = 0
-    $conflicted = $deleted = $renamed = $modified = $typechanged = $staged = $untracked = $false
+    $conflicted = $deleted = $renamed = $modified = $staged = $untracked = $false
     foreach ($line in $lines) {
         switch -Regex ($line) {
             '^# branch\.head (.+)$' { $branch = if ($Matches[1] -eq '(detached)') { 'HEAD' } else { $Matches[1] } }
@@ -119,7 +121,6 @@ function script:Get-PromptGit([string]$gitRoot) {
                 if ($line[0] -eq '2') { $renamed = $true }
                 if ($x -eq 'D' -or $y -eq 'D') { $deleted = $true }
                 if ($y -eq 'M') { $modified = $true }
-                if ($x -eq 'T' -or $y -eq 'T') { $typechanged = $true }
                 if ($x -ne '.') { $staged = $true }
             }
         }
@@ -140,7 +141,6 @@ function script:Get-PromptGit([string]$gitRoot) {
     if ($deleted)     { $status += [char]0x2718 }   # ✘
     if ($renamed)     { $status += [char]0x00BB }   # »
     if ($modified)    { $status += '!' }
-    if ($typechanged) { $status += '' }
     if ($staged)      { $status += '+' }
     if ($untracked)   { $status += '?' }
     if ($ahead -gt 0 -and $behind -gt 0) { $status += [char]0x21D5 }  # ⇕
@@ -176,49 +176,49 @@ function global:prompt {
     $path = if ($loc.Provider.Name -eq 'FileSystem') { $loc.ProviderPath } else { $loc.Path }
     $gitRoot = if ($loc.Provider.Name -eq 'FileSystem') { Get-GitRoot $path } else { $null }
 
-    $osSymbol = if ($IsLinux) { $G.Linux } else { $G.Windows }
-    $isAdmin = $IsWindows -and ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    $showUser = $isAdmin -or $env:SSH_CONNECTION
+    $osSymbol = $script:PromptOsSymbol
+    $isAdmin = $script:PromptIsAdmin
+    $showUser = $script:PromptShowUser
 
     $sb = [Text.StringBuilder]::new()
 
     # Line 1
-    [void]$sb.Append((Fg section2) + $G.TopLeft)
-    [void]$sb.Append((Fg section0) + $G.LeftCap)
-    [void]$sb.Append($Bold + (Bg section0) + $White + "$osSymbol  " + $Reset)
+    [void]$sb.Append($PromptFg.section2 + $G.TopLeft)
+    [void]$sb.Append($PromptFg.section0 + $G.LeftCap)
+    [void]$sb.Append($Bold + $PromptBg.section0 + $White + "$osSymbol  " + $Reset)
     if ($showUser) {
         # Elevated shells show "Administrator" rather than the account name
-        $userStyle = if ($isAdmin) { $Bold + (Bg section0) + $Red } else { (Fg textlight) + (Bg section0) }
+        $userStyle = if ($isAdmin) { $Bold + $PromptBg.section0 + $Red } else { $PromptFg.textlight + $PromptBg.section0 }
         $userName = if ($isAdmin) { 'Administrator' } else { [Environment]::UserName }
         [void]$sb.Append($userStyle + "$userName " + $Reset)
     }
 
-    [void]$sb.Append((Bg section1) + (Fg section0) + $G.Arrow)
-    [void]$sb.Append($Bold + (Fg textlight) + " $(Get-PromptDirectory $path $gitRoot) " + $Reset)
+    [void]$sb.Append($PromptBg.section1 + $PromptFg.section0 + $G.Arrow)
+    [void]$sb.Append($Bold + $PromptFg.textlight + " $(Get-PromptDirectory $path $gitRoot) " + $Reset)
 
-    [void]$sb.Append((Bg section2) + (Fg section1) + $G.Arrow)
+    [void]$sb.Append($PromptBg.section2 + $PromptFg.section1 + $G.Arrow)
     if ($gitRoot) {
         $git = Get-PromptGit $gitRoot
         if ($git) {
-            [void]$sb.Append($Bold + (Fg textdark) + " $($G.Branch) $($git.Branch) ")
+            [void]$sb.Append($Bold + $PromptFg.textdark + " $($G.Branch) $($git.Branch) ")
             [void]$sb.Append($Red + "$($git.Status) " + $Reset)
         }
     }
 
     $docker = if ($loc.Provider.Name -eq 'FileSystem') { Get-PromptDockerContext $path } else { $null }
-    $dockerSegment = if ($docker) { $Bold + (Bg section4) + (Fg textdark) + " $($G.Docker) $docker " + $Reset } else { '' }
+    $dockerSegment = if ($docker) { $Bold + $PromptBg.section4 + $PromptFg.textdark + " $($G.Docker) $docker " + $Reset } else { '' }
 
-    [void]$sb.Append((Bg section3) + (Fg section2) + $G.Arrow)
+    [void]$sb.Append($PromptBg.section3 + $PromptFg.section2 + $G.Arrow)
     if ($PromptVariant -eq 'Default') { [void]$sb.Append($dockerSegment) }
-    [void]$sb.Append((Bg section4) + (Fg section3) + $G.Arrow)
+    [void]$sb.Append($PromptBg.section4 + $PromptFg.section3 + $G.Arrow)
     if ($PromptVariant -eq 'VSCode') { [void]$sb.Append($dockerSegment) }
-    [void]$sb.Append((Bg section5) + (Fg section4) + $G.Arrow)
-    [void]$sb.Append($Bold + (Fg textdark) + " $($G.Clock) $(Get-Date -Format $PromptTimeFormat) " + $Reset)
-    [void]$sb.Append((Fg section5) + $G.RightCap + $Reset)
+    [void]$sb.Append($PromptBg.section5 + $PromptFg.section4 + $G.Arrow)
+    [void]$sb.Append($Bold + $PromptFg.textdark + " $($G.Clock) $(Get-Date -Format $PromptTimeFormat) " + $Reset)
+    [void]$sb.Append($PromptFg.section5 + $G.RightCap + $Reset)
 
     # Line 2
-    [void]$sb.Append("`n" + (Fg section2) + $G.BotLeft)
-    [void]$sb.Append($Bold + (Fg section5) + "$($G.Chevron) " + $Reset)
+    [void]$sb.Append("`n" + $PromptFg.section2 + $G.BotLeft)
+    [void]$sb.Append($Bold + $PromptFg.section5 + "$($G.Chevron) " + $Reset)
 
     $global:LASTEXITCODE = $lastExit
     $sb.ToString()

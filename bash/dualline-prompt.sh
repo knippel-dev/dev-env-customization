@@ -100,7 +100,7 @@ _dl_git() {
     out=$(git --no-optional-locks status --porcelain=2 --branch 2>/dev/null) || return 1
 
     local branch='' ahead=0 behind=0
-    local conflicted=0 deleted=0 renamed=0 modified=0 typechanged=0 staged=0 untracked=0
+    local conflicted=0 deleted=0 renamed=0 modified=0 staged=0 untracked=0
     local line x y
     while IFS= read -r line; do
         case $line in
@@ -116,7 +116,6 @@ _dl_git() {
                 [[ ${line:0:1} == 2 ]] && renamed=1
                 [[ $x == D || $y == D ]] && deleted=1
                 [[ $y == M ]] && modified=1
-                [[ $x == T || $y == T ]] && typechanged=1
                 [[ $x != . ]] && staged=1 ;;
         esac
     done <<< "$out"
@@ -136,7 +135,6 @@ _dl_git() {
     (( deleted ))     && status+=$'\u2718'   # ✘
     (( renamed ))     && status+=$'\u00bb'   # »
     (( modified ))    && status+='!'
-    (( typechanged )) && status+=''
     (( staged ))      && status+='+'
     (( untracked ))   && status+='?'
     if (( ahead > 0 && behind > 0 )); then status+=$'\u21d5'   # ⇕
