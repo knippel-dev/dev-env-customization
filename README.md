@@ -31,7 +31,7 @@ The environment variables work with the `irm | iex` form. If you already have th
 ## Components
 | Component | Sets up |
 |---|---|
-| `Packages` | Apps from the manifest, with winget: PowerShell 7, Git, GitHub CLI, VS Code, PowerToys, Azure CLI, Claude and Claude Code |
+| `Packages` | Apps from the manifest, with winget: PowerShell 7, Git, Windows Terminal, GitHub CLI, VS Code, PowerToys, Azure CLI, Claude and Claude Code |
 | `Font` | IosevkaTerm Nerd Font, for the current user (no admin needed) |
 | `Terminal` | The Custom color scheme in Windows Terminal, and it and the Nerd Font as the defaults for all profiles |
 | `Prompt` | The [prompt](#prompt)'s config from the manifest, and the prompt in your PowerShell 7 profile (using `-Variant VSCode` in the VS Code terminal) |

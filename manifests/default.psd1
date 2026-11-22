@@ -8,6 +8,7 @@
     Packages = @(
         'Microsoft.PowerShell'
         'Git.Git'
+        'Microsoft.WindowsTerminal'
         'GitHub.cli'
         'Microsoft.VisualStudioCode'
         'Microsoft.PowerToys'
