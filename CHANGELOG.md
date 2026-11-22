@@ -4,6 +4,9 @@ Notable changes to this project. The format is based on [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- Windows Terminal (`Microsoft.WindowsTerminal`) in the manifest's packages, for machines that don't have it built in (Windows 10, Windows Server). It's installed before the `Terminal` component applies its settings.
+
 ## [0.5.0] - 2026-11-20
 
 The first tagged release. Everything below is new compared to the earlier, untagged scripts.
